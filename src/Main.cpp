@@ -83,7 +83,7 @@ int main(int argc, char* args[])
     }
 
     // Kép betöltése és textúra létrehozása
-    SDL_Texture* imageTexture = loadTexture("C:/SkibidiShooter/project/res/hajo1.png", renderer);
+    SDL_Texture* imageTexture = loadTexture("res/hajo1.png", renderer);
     if (imageTexture == nullptr)
     {
         std::cout << "Kép betöltési hiba!" << std::endl;
