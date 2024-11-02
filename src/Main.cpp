@@ -1,254 +1,145 @@
+#define SDL_MAIN_HANDLED
 #include <SDL.h>
-#include <SDL_image.h>
+#include <SDL_opengl.h>
+#include <imgui.h>
+#include "imgui_impl_sdl2.h"
+#include "imgui_impl_opengl3.h"
+#include <stb/stb_image.h>
 #include <iostream>
 
+// Textúrák globális változók
+GLuint newGameTexture;
+GLuint settingsTexture;
+GLuint creditsTexture;
+GLuint exitTexture;
 
-
-// Négyzet sebessége
-const float SQUARE_SPEED = 0.3f;
-
-// Gombok mérete
-const int BUTTON_WIDTH = 449;
-const int BUTTON_HEIGHT = 206;
-
-// Gombok pozíciója a menüben (középen)
-SDL_Rect playButton = { 449, 206, BUTTON_WIDTH, BUTTON_HEIGHT };
-SDL_Rect quitButton = { 449, 206, BUTTON_WIDTH, BUTTON_HEIGHT };
-
-// Textúra betöltése
-SDL_Texture* loadTexture(const std::string& path, SDL_Renderer* renderer)
-{
-    SDL_Texture* newTexture = nullptr;
-    SDL_Surface* loadedSurface = IMG_Load(path.c_str());
-    if (loadedSurface == nullptr)
-    {
-        std::cout << "Kép betöltési hiba! SDL_image Error: " << IMG_GetError() << std::endl;
+// Textúrák betöltése függvény
+GLuint LoadTextureFromFile(const char* filename) {
+    int width, height, channels;
+    unsigned char* image = stbi_load(filename, &width, &height, &channels, 4);
+    if (!image) {
+        std::cerr << "Failed to load " << filename << ": " << stbi_failure_reason() << std::endl;
+        return 0;
     }
-    else
-    {
 
-        // Textúra létrehozása a betöltött surface-ből
-        newTexture = SDL_CreateTextureFromSurface(renderer, loadedSurface);
-        if (newTexture == nullptr)
-        {
-            std::cout << "Textúra létrehozási hiba! SDL Error: " << SDL_GetError() << std::endl;
-        }
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
 
-        // Felületek felszabadítása
-        SDL_FreeSurface(loadedSurface);
-    }
-    return newTexture;
+    // Textúra paraméterek
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    stbi_image_free(image);
+
+    return textureID;
 }
 
-// Menü megjelenítése
-bool showMenu(SDL_Renderer* renderer, SDL_Texture* playTexture, SDL_Texture* quitTexture)
-{
-    bool quitMenu = false;
-    SDL_Event e;
+// Textúrák inicializálása
+void LoadTextures() {
+    newGameTexture = LoadTextureFromFile("res/newgame.png");
+    settingsTexture = LoadTextureFromFile("res/settings.png");
+    creditsTexture = LoadTextureFromFile("res/credits.png");
+    exitTexture = LoadTextureFromFile("res/exit.png");
 
-    while (!quitMenu)
-    {
-        while (SDL_PollEvent(&e) != 0)
-        {
-            if (e.type == SDL_QUIT)
-            {
-                return false;
-            }
-
-            if (e.type == SDL_MOUSEBUTTONDOWN)
-            {
-                int mouseX, mouseY;
-                SDL_GetMouseState(&mouseX, &mouseY);
-
-                // "Play" gomb
-                if (mouseX > playButton.x && mouseX < playButton.x + playButton.w &&
-                    mouseY > playButton.y && mouseY < playButton.y + playButton.h)
-                {
-                    return true; // Induljon a játék
-                }
-
-                // "Quit" gomb
-                if (mouseX > quitButton.x && mouseX < quitButton.x + quitButton.w &&
-                    mouseY > quitButton.y && mouseY < quitButton.y + quitButton.h)
-                {
-                    return false; // Kilépés a programból
-                }
-            }
-        }
-
-    // Menü megjelenítése
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-
-        // "Play" gomb képének kirajzolása
-        SDL_RenderCopy(renderer, playTexture, nullptr, &playButton);
-
-        // "Quit" gomb képének kirajzolása
-        SDL_RenderCopy(renderer, quitTexture, nullptr, &quitButton);
-
-        SDL_RenderPresent(renderer);
+    if (!newGameTexture || !settingsTexture || !creditsTexture || !exitTexture) {
+        std::cerr << "One or more textures failed to load. Please check file paths and image formats." << std::endl;
     }
-
-    return false;
 }
 
-// Játék megjelenítése
-void showGame(SDL_Renderer* renderer, SDL_DisplayMode displayMode)
-{
-    SDL_Texture* imageTexture = loadTexture("res/hajo1.png", renderer);
-    if (imageTexture == nullptr)
-    {
-        std::cout << "Kép betöltési hiba!" << std::endl;
-        return;
-    }
-
-    int imgWidth, imgHeight;
-    SDL_QueryTexture(imageTexture, nullptr, nullptr, &imgWidth, &imgHeight);
-
-    SDL_Rect destRect = { displayMode.w / 2 - imgWidth / 2, displayMode.h / 2 - imgHeight / 2, imgWidth, imgHeight };
-    float velX = 0, velY = 0;
-
-    bool quitGame = false;
-    SDL_Event e;
-
-    while (!quitGame)
-    {
-        while (SDL_PollEvent(&e) != 0)
-        {
-            if (e.type == SDL_QUIT)
-            {
-                quitGame = true;
-            }
-        }
-
-        // Billentyűk állapota
-        const Uint8* currentKeyStates = SDL_GetKeyboardState(nullptr);
-
-        // Horizontális mozgás
-        if (currentKeyStates[SDL_SCANCODE_A])
-        {
-            velX = -SQUARE_SPEED; // Balra mozgás
-        }
-        else if (currentKeyStates[SDL_SCANCODE_D])
-        {
-            velX = SQUARE_SPEED;  // Jobbra mozgás
-        }
-        else
-        {
-            velX = 0; // Nincs vízszintes mozgás
-        }
-
-        // Vertikális mozgás
-        if (currentKeyStates[SDL_SCANCODE_W])
-        {
-            velY = -SQUARE_SPEED; // Felfelé mozgás
-        }
-        else if (currentKeyStates[SDL_SCANCODE_S])
-        {
-            velY = SQUARE_SPEED;  // Lefelé mozgás
-        }
-        else
-        {
-            velY = 0; // Nincs függőleges mozgás
-        }
-
-        // Kép pozíciójának frissítése
-        destRect.x += static_cast<int>(velX * 10);
-        destRect.y += static_cast<int>(velY * 10);
-
-        // Kép pozíciójának korlátozása a képernyőn belül
-        if (destRect.x < 0) destRect.x = 0;
-        if (destRect.x + destRect.w > displayMode.w) destRect.x = displayMode.w - destRect.w;
-        if (destRect.y < 0) destRect.y = 0;
-        if (destRect.y + destRect.h > displayMode.h) destRect.y = displayMode.h - destRect.h;
-
-        // Háttér (fekete) rajzolása
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-
-        // Kép (textúra) rajzolása
-        SDL_RenderCopy(renderer, imageTexture, nullptr, &destRect);
-
-        SDL_RenderPresent(renderer);
-
-        SDL_Delay(16);
-    }
-
-    SDL_DestroyTexture(imageTexture);
-}
-
-// Fő program
-int main(int argc, char* args[])
-{
-    // SDL inicializálása
-    if (SDL_Init(SDL_INIT_VIDEO) < 0)
-    {
-        std::cout << "SDL nem tudott inicializálni! SDL_Error: " << SDL_GetError() << std::endl;
+int main(int argc, char* argv[]) {
+    // SDL és OpenGL inicializálása
+    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+        std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
         return -1;
     }
 
-    // SDL_image inicializálása
-    if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG))
-    {
-        std::cout << "SDL_image nem tudott inicializálni! SDL_image Error: " << IMG_GetError() << std::endl;
-        return -1;
-    }
-
-    // Képernyőméret
+    // Teljes képernyős ablak létrehozása
     SDL_DisplayMode displayMode;
-    if (SDL_GetCurrentDisplayMode(0, &displayMode) != 0)
-    {
-        std::cout << "Nem sikerült lekérdezni a kijelző módot! SDL_Error: " << SDL_GetError() << std::endl;
-        SDL_Quit();
-        return -1;
-    }
+    SDL_GetCurrentDisplayMode(0, &displayMode); // Fő monitor mérete
+    SDL_Window* window = SDL_CreateWindow("Fullscreen Menu", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                                          displayMode.w, displayMode.h, SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN_DESKTOP);
+    SDL_GLContext gl_context = SDL_GL_CreateContext(window);
+    SDL_GL_MakeCurrent(window, gl_context);
+    SDL_GL_SetSwapInterval(1); // Vsync engedélyezése
 
-    // Ablak létrehozása
-    SDL_Window* window = SDL_CreateWindow("Menu és Játék - SDL2", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                          displayMode.w, displayMode.h, SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS);
+    // ImGui inicializálása
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+    ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
+    ImGui_ImplOpenGL3_Init("#version 330");
 
-    if (window == nullptr)
-    {
-        std::cout << "Ablak nem jött létre! SDL_Error: " << SDL_GetError() << std::endl;
-        SDL_Quit();
-        return -1;
-    }
+    // Textúrák betöltése
+    LoadTextures();
 
-    // Renderer létrehozása
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    if (renderer == nullptr)
-    {
-        std::cout << "Renderer nem jött létre! SDL_Error: " << SDL_GetError() << std::endl;
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return -1;
-    }
-     // Textúrák betöltése a "Play" és "Quit" gombokhoz
-    SDL_Texture* playTexture = loadTexture("res/play_button.png", renderer);
-    SDL_Texture* quitTexture = loadTexture("res/quit_button.png", renderer);
+    bool run = true;
+    while (run) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            ImGui_ImplSDL2_ProcessEvent(&event);
+            if (event.type == SDL_QUIT) run = false;
+        }
 
-    // Gombok pozicionálása a képernyő közepére
-    playButton.x = (displayMode.w - BUTTON_WIDTH) / 2; // "Play" gomb X pozíciója
-    playButton.y = (displayMode.h - BUTTON_HEIGHT) / 2 - 120; // "Play" gomb Y pozíciója
+        // Új frame indítása az ImGui-nál
+        ImGui_ImplSDL2_NewFrame();
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui::NewFrame();
 
-    quitButton.x = (displayMode.w - BUTTON_WIDTH) / 2; // "Quit" gomb X pozíciója
-    quitButton.y = (displayMode.h - BUTTON_HEIGHT) / 2 + 120; // "Quit" gomb Y pozíciója
+        // Középre pozicionált menü ablak
+        ImVec2 windowSize(300, 300);  // Menüablak mérete
+        ImVec2 windowPos((displayMode.w - windowSize.x) / 2, (displayMode.h - windowSize.y) / 2);
+        ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always);
+        ImGui::SetNextWindowSize(windowSize, ImGuiCond_Always);
+        ImGui::Begin("Main Menu", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 
-    // Menü megjelenítése
-     bool playGame = showMenu(renderer, playTexture, quitTexture);
+        // New Game gomb
+        if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(250, 50))) {
+            std::cout << "New Game clicked" << std::endl;
+        }
 
-    // Ha a játék indult
-    if (playGame)
-    {
-        showGame(renderer, displayMode);
+        ImGui::Dummy(ImVec2(0.0f, 10.0f));  // Kis távolság a gombok között
+
+        // Settings gomb
+        if (ImGui::ImageButton("SettingsButton", (ImTextureID)(intptr_t)settingsTexture, ImVec2(250, 50))) {
+            std::cout << "Settings clicked" << std::endl;
+        }
+
+        ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+        // Credits gomb
+        if (ImGui::ImageButton("CreditsButton", (ImTextureID)(intptr_t)creditsTexture, ImVec2(250, 50))) {
+            std::cout << "Credits clicked" << std::endl;
+        }
+
+        ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+        // Exit gomb
+        if (ImGui::ImageButton("ExitButton", (ImTextureID)(intptr_t)exitTexture, ImVec2(250, 50))) {
+            run = false;  // Kilépés a programból
+        }
+
+        ImGui::End();
+
+        // Renderelés
+        ImGui::Render();
+        glViewport(0, 0, displayMode.w, displayMode.h);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        SDL_GL_SwapWindow(window);
     }
 
     // Takarítás
-    SDL_DestroyTexture(playTexture);
-    SDL_DestroyTexture(quitTexture);
-    SDL_DestroyRenderer(renderer);
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+    SDL_GL_DeleteContext(gl_context);
     SDL_DestroyWindow(window);
-    IMG_Quit();
     SDL_Quit();
 
     return 0;
