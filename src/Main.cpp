@@ -6,12 +6,18 @@
 #include "imgui_impl_opengl3.h"
 #include <stb/stb_image.h>
 #include <iostream>
+#include "myheaders/SaveManager.h"
+#include "myheaders/Map.h"
+#include "myheaders/Room.h"
+#include "myheaders/Player.h"
 
 // Textúrák globális változók
 GLuint newGameTexture;
 GLuint settingsTexture;
 GLuint creditsTexture;
 GLuint exitTexture;
+
+//*************MENÜ**************//
 
 // Textúrák betöltése függvény
 GLuint LoadTextureFromFile(const char* filename) {
@@ -50,6 +56,8 @@ void LoadTextures() {
         std::cerr << "One or more textures failed to load. Please check file paths and image formats." << std::endl;
     }
 }
+SaveManager saveManager("savefile.json");
+Map currentMap;
 
 int main(int argc, char* argv[]) {
     // SDL és OpenGL inicializálása
@@ -57,7 +65,7 @@ int main(int argc, char* argv[]) {
         std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
         return -1;
     }
-
+    //*************FULLSCREEN ABLAK LÉTREHOZÁSA**************//
     // Teljes képernyős ablak létrehozása
     SDL_DisplayMode displayMode;
     SDL_GetCurrentDisplayMode(0, &displayMode); // Fő monitor mérete
@@ -77,6 +85,8 @@ int main(int argc, char* argv[]) {
     // Textúrák betöltése
     LoadTextures();
 
+
+    //*************FŐ LOGIKA**************//
     bool run = true;
     while (run) {
         SDL_Event event;
@@ -98,9 +108,22 @@ int main(int argc, char* argv[]) {
         ImGui::Begin("Main Menu", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 
         // New Game gomb
-        if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(250, 50))) {
-            std::cout << "New Game clicked" << std::endl;
-        }
+    if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(250, 50))) {
+
+        Player player;
+         int roomIndex = 0;
+       SaveManager saveManager("savefile.json");
+
+        // Ha van mentés, betöltjük
+    if (saveManager.loadGame(roomIndex, player)) {
+        std::cout << "Game loaded from save." << std::endl;
+    } else {
+        // Ha nincs mentés, új játék inicializálása alapértelmezett értékekkel
+        std::cout << "New game started." << std::endl;
+        player = Player();  // Alapértelmezett élet és pénz
+        saveManager.saveGame(roomIndex, player);
+}}
+
 
         ImGui::Dummy(ImVec2(0.0f, 10.0f));  // Kis távolság a gombok között
 

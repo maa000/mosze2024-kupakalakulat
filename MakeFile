@@ -4,10 +4,11 @@ CXXFLAGS := -std=c++11 -Wall -Wextra -g
 LDFLAGS := -Llib/sdl_lib -lSDL2 -lSDL2main -lopengl32 -lgdi32
 
 # Include directories
-INCLUDES := -Iinclude -Iinclude/sdl -Iinclude/imgui -Iinclude/stb
+INCLUDES := -Iinclude -Iinclude/sdl -Iinclude/imgui -Iinclude/stb -Iinclude/nlohmann -Iinclude/myheaders
 
 # Source and object files
-SRCS := src/Main.cpp lib/stb/stb_image.c \
+SRCS := src/Main.cpp src/Player.cpp src/Map.cpp src/Room.cpp src/SaveManager.cpp \
+        lib/stb/stb_image.c \
         include/imgui/imgui.cpp include/imgui/imgui_draw.cpp \
         include/imgui/imgui_widgets.cpp include/imgui/imgui_tables.cpp \
         include/imgui/imgui_impl_sdl2.cpp include/imgui/imgui_impl_opengl3.cpp

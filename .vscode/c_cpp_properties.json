@@ -7,7 +7,10 @@
                 "${workspaceFolder}/include/sdl/**",
                 "${workspaceFolder}/include/imgui",
                 "${workspaceFolder}/include/stb",
-                "${workspaceFolder}/include/**"
+                "${workspaceFolder}/include/**",
+                "${workspaceFolder}/include/sdl",
+                "${workspaceFolder}/include/myheaders",
+                "${workspaceFolder}/include/nlohmann"
             ],
             "defines": [
                 "_DEBUG",
