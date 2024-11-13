@@ -82,11 +82,23 @@ int main(int argc, char* args[])
         return -1;
     }
 
+    // Háttérkép betöltése
+    SDL_Texture* backgroundTexture = loadTexture("res/ur.png", renderer);
+    if (backgroundTexture == nullptr)
+    {
+        std::cout << "Háttérkép betöltési hiba!" << std::endl;
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return -1;
+    }
+
     // Kép betöltése és textúra létrehozása
     SDL_Texture* imageTexture = loadTexture("res/hajo1.png", renderer);
     if (imageTexture == nullptr)
     {
         std::cout << "Kép betöltési hiba!" << std::endl;
+        SDL_DestroyTexture(backgroundTexture);
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
         SDL_Quit();
@@ -96,6 +108,9 @@ int main(int argc, char* args[])
     // Textúra méretének lekérdezése
     int imgWidth, imgHeight;
     SDL_QueryTexture(imageTexture, nullptr, nullptr, &imgWidth, &imgHeight);
+
+    // Háttér méretének beállítása (ablak teljes méretét lefedi)
+    SDL_Rect backgroundRect = {0, 0, screenWidth, screenHeight};
 
     // Kép kezdőpozíciója
     SDL_Rect destRect = {displayMode.w / 2 - imgWidth / 2, displayMode.h/ 2 - imgHeight / 2, imgWidth, imgHeight};
@@ -157,9 +172,8 @@ int main(int argc, char* args[])
         if (destRect.y < 0) destRect.y = 0;
         if (destRect.y + destRect.h > displayMode.h) destRect.y = displayMode.h - destRect.h;
 
-        // Háttér (fekete) rajzolása
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
+        // Háttér rajzolása
+        SDL_RenderCopy(renderer, backgroundTexture, nullptr, &backgroundRect);
 
         // Kép (textúra) rajzolása
         SDL_RenderCopy(renderer, imageTexture, nullptr, &destRect);
@@ -173,6 +187,7 @@ int main(int argc, char* args[])
 
     // Takarítás
     SDL_DestroyTexture(imageTexture);
+    SDL_DestroyTexture(backgroundTexture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
