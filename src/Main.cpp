@@ -9,6 +9,7 @@
 #include <vector>
 #include <cstdlib> // Véletlen számokhoz
 #include <ctime>
+#include <cmath>
 #include "myheaders/SaveManager.h"
 #include "myheaders/Map.h"
 #include "myheaders/Room.h"
@@ -21,6 +22,8 @@ SDL_Texture* settingsTexture;
 SDL_Texture* creditsTexture;
 SDL_Texture* exitTexture;
 SDL_Texture* gameBackgroundTexture;
+
+std::vector<int> buttonDistances;
 
 // Gomb textúrák
 SDL_Texture* button1Texture;//room0
@@ -58,14 +61,14 @@ void LoadMenuTextures(SDL_Renderer* renderer) {
 }
 // Játék textúrák betöltése
 void LoadGameTextures(SDL_Renderer* renderer) {
-    gameBackgroundTexture = loadTexture("res/game_background.png", renderer);
-    button1Texture = loadTexture("res/button1.png", renderer);
-    button2Texture = loadTexture("res/button2.png", renderer);
-    button3Texture = loadTexture("res/button3.png", renderer);
-    button4Texture = loadTexture("res/button4.png", renderer);
-    button5Texture = loadTexture("res/button1.png", renderer);
-    button6Texture = loadTexture("res/button2.png", renderer);
-    button7Texture = loadTexture("res/button3.png", renderer);
+    gameBackgroundTexture = loadTexture("res/mapbg.png", renderer);
+    button1Texture = loadTexture("res/Harc_hatter.png", renderer);
+    button2Texture = loadTexture("res/Trade_hatter.png", renderer);
+    button3Texture = loadTexture("res/Unknow_hatter.png", renderer);
+    button4Texture = loadTexture("res/Hp_hatter.png", renderer);
+    button5Texture = loadTexture("res/Finalboss_hatter.png", renderer);
+    button6Texture = loadTexture("res/Finalboss_hatter.png", renderer);
+    button7Texture = loadTexture("res/FinalFinalboss_hatterr.png", renderer);
 
     if (!gameBackgroundTexture || !button1Texture || !button2Texture || !button3Texture ||
         !button4Texture || !button5Texture || !button6Texture || !button7Texture) {
@@ -91,16 +94,70 @@ std::vector<int> GenerateRandomDistances(int screenWidth, int numButtons, int bu
     positions.push_back(remainingSpace); // Az utolsó gombhoz maradék hely
     return positions;
 }
+
+std::vector<int> GenerateRandomYOffsets(int numButtons, int maxOffset) {
+    std::vector<int> yOffsets;
+    std::srand(static_cast<unsigned int>(std::time(nullptr))); // Véletlenszám-generátor inicializálása
+
+    for (int i = 0; i < numButtons; ++i) {
+        int offset = (std::rand() % (2 * maxOffset + 1)) - maxOffset; // Véletlen érték [-maxOffset, +maxOffset]
+        yOffsets.push_back(offset);
+    }
+
+    return yOffsets;
+}
+
+void DrawThickLine(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thickness) {
+    float angle = atan2(y2 - y1, x2 - x1); // Vonal irányszöge
+    float sinAngle = sin(angle);
+    float cosAngle = cos(angle);
+
+    // Téglalap négy sarkának kiszámítása
+    SDL_Point points[4] = {
+        {static_cast<int>(std::round(x1 + thickness / 2 * -sinAngle)), static_cast<int>(std::round(y1 + thickness / 2 * cosAngle))},
+        {static_cast<int>(std::round(x2 + thickness / 2 * -sinAngle)), static_cast<int>(std::round(y2 + thickness / 2 * cosAngle))},
+        {static_cast<int>(std::round(x2 - thickness / 2 * -sinAngle)), static_cast<int>(std::round(y2 - thickness / 2 * cosAngle))},
+        {static_cast<int>(std::round(x1 - thickness / 2 * -sinAngle)), static_cast<int>(std::round(y1 - thickness / 2 * cosAngle))},
+    };
+
+    // Téglalap kitöltése pontok közötti szakaszokkal
+    for (int i = 0; i < thickness; ++i) {
+        int offsetX = static_cast<int>(std::round(i * sinAngle));
+        int offsetY = static_cast<int>(std::round(i * cosAngle));
+
+        SDL_RenderDrawLine(renderer,
+                           points[0].x + offsetX, points[0].y + offsetY,
+                           points[1].x + offsetX, points[1].y + offsetY);
+    }
+}
+
+
 void RenderGameScreen(SDL_Renderer* renderer, int screenWidth, int screenHeight) {
     SDL_RenderCopy(renderer, gameBackgroundTexture, nullptr, nullptr); // Háttér kirajzolása
 
     int buttonWidth = 100;
     int buttonHeight = 50;
-    auto distances = GenerateRandomDistances(screenWidth, 7, buttonWidth);
+    const auto& distances = buttonDistances;
 
-    int xPos = 0;
+    // Generáljuk az y eltéréseket
+    static std::vector<int> yOffsets = GenerateRandomYOffsets(7, 50); // Max ±50px eltérés
+
+    int totalButtonWidth = 0;
     for (int i = 0; i < 7; ++i) {
-        xPos += distances[i];
+        totalButtonWidth += buttonWidth + distances[i];
+    }
+    totalButtonWidth -= distances.back();
+
+    int xPos = (screenWidth - totalButtonWidth) / 2;
+
+    // Gomb szélek tárolása
+    struct ButtonEdge {
+        SDL_Point leftEdge;
+        SDL_Point rightEdge;
+    };
+    std::vector<ButtonEdge> buttonEdges;
+
+    for (int i = 0; i < 7; ++i) {
         SDL_Texture* buttonTexture = nullptr;
         switch (i) {
             case 0: buttonTexture = button1Texture; break;
@@ -111,13 +168,47 @@ void RenderGameScreen(SDL_Renderer* renderer, int screenWidth, int screenHeight)
             case 5: buttonTexture = button6Texture; break;
             case 6: buttonTexture = button7Texture; break;
         }
-        ImGui::SetCursorPos(ImVec2(xPos, screenHeight / 2 - buttonHeight / 2));
-        if (ImGui::ImageButton(("Button" + std::to_string(i + 1)).c_str(), (ImTextureID)(intptr_t)buttonTexture, ImVec2(buttonWidth, buttonHeight))) {
-            std::cout << "Button " << i + 1 << " clicked!" << std::endl;
+
+        // Az y pozíció randomizálása
+        int yPos = (screenHeight / 2 - buttonHeight / 2) + yOffsets[i];
+
+        SDL_Rect buttonRect = {xPos, yPos, buttonWidth, buttonHeight};
+        SDL_RenderCopy(renderer, buttonTexture, nullptr, &buttonRect);
+
+        // Gomb bal és jobb széle
+        SDL_Point leftEdge = {buttonRect.x, buttonRect.y + buttonRect.h / 2};             // Bal szél középen
+        SDL_Point rightEdge = {buttonRect.x + buttonRect.w, buttonRect.y + buttonRect.h / 2}; // Jobb szél középen
+        buttonEdges.push_back({leftEdge, rightEdge});
+
+        // Kattintás ellenőrzése
+        int mouseX, mouseY;
+        Uint32 buttons = SDL_GetMouseState(&mouseX, &mouseY);
+        if (buttons & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+            if (mouseX >= buttonRect.x && mouseX <= buttonRect.x + buttonRect.w &&
+                mouseY >= buttonRect.y && mouseY <= buttonRect.y + buttonRect.h) {
+                std::cout << "Button " << i + 1 << " clicked!" << std::endl;
+            }
         }
-        xPos += buttonWidth;
+
+        xPos += buttonWidth + distances[i];
     }
+
+    // Vonalkapcsolatok rajzolása a gombok egymás felé eső szélei között
+    SDL_SetRenderDrawColor(renderer, 157, 165, 189, SDL_ALPHA_OPAQUE); // Fehér szín
+    for (size_t i = 0; i < buttonEdges.size() - 1; ++i) {
+    DrawThickLine(renderer, 
+                 buttonEdges[i].rightEdge.x, buttonEdges[i].rightEdge.y,
+                 buttonEdges[i + 1].leftEdge.x, buttonEdges[i + 1].leftEdge.y, 
+                 4); // 5 pixel vastagságú vonal
+    }
+
+    // Alapértelmezett szín visszaállítása (opcionális, ha más rajzolás is következik)
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
 }
+
+
+
+
 
 int main(int argc, char* argv[]) {
     
@@ -170,9 +261,10 @@ int main(int argc, char* argv[]) {
     LoadMenuTextures(renderer);
     LoadGameTextures(renderer);
 
+    buttonDistances = GenerateRandomDistances(displayMode.w, 7, 100); // Egyszeri távolsággenerálás
 
     // Háttér textúra betöltése
-    SDL_Texture* backgroundTexture = loadTexture("res/background.png", renderer);
+    SDL_Texture* backgroundTexture = loadTexture("res/bg.png", renderer);
     if (!backgroundTexture) {
         std::cerr << "Háttérkép betöltési hiba!" << std::endl;
         SDL_DestroyRenderer(renderer);
@@ -192,52 +284,69 @@ int main(int argc, char* argv[]) {
             ImGui_ImplSDL2_ProcessEvent(&event);
             if (event.type == SDL_QUIT) run = false;
         }
-
-        // Új frame indítása az ImGui-nál
+    
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
-         // Háttér kirajzolása
+    
         SDL_RenderClear(renderer);
-        //SDL_RenderCopy(renderer, backgroundTexture, nullptr, nullptr);
-     
-     if (inMenu) {
-               SDL_RenderCopy(renderer, backgroundTexture, nullptr, nullptr);
+    
+         if (inMenu) {
+            // Menü renderelése ImGui-val
+            SDL_RenderCopy(renderer, backgroundTexture, nullptr, nullptr);
             ImGui::Begin("Main Menu");
-            if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(250, 50))) {
+
+            // Az ablak szélessége
+            ImVec2 windowSize = ImGui::GetWindowSize();
+            float windowWidth = windowSize.x;
+
+            // Gomb szélessége
+            float buttonWidth = 225.0f;
+            float buttonHeight = 45.0f;
+
+            // Középre igazítás
+            float centerX = (windowWidth - buttonWidth) / 2.0f;
+
+            // New Game gomb
+            ImGui::SetCursorPosX(centerX); // Vízszintes középre igazítás
+            if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(buttonWidth, buttonHeight))) {
                 inMenu = false; // Játék képernyőre váltás
             }
-        ImGui::Dummy(ImVec2(0.0f, 10.0f));  // Kis távolság a gombok között
 
-        // Settings gomb
-        if (ImGui::ImageButton("SettingsButton", (ImTextureID)(intptr_t)settingsTexture, ImVec2(250, 50))) {
-            std::cout << "Settings clicked" << std::endl;
-        }
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
-        ImGui::Dummy(ImVec2(0.0f, 10.0f));
+            // Settings gomb
+            ImGui::SetCursorPosX(centerX);
+            if (ImGui::ImageButton("SettingsButton", (ImTextureID)(intptr_t)settingsTexture, ImVec2(buttonWidth, buttonHeight))) {
+                std::cout << "Settings clicked" << std::endl;
+            }
 
-        // Credits gomb
-        if (ImGui::ImageButton("CreditsButton", (ImTextureID)(intptr_t)creditsTexture, ImVec2(250, 50))) {
-            std::cout << "Credits clicked" << std::endl;
-        }
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
-        ImGui::Dummy(ImVec2(0.0f, 10.0f));
+            // Credits gomb
+            ImGui::SetCursorPosX(centerX);
+            if (ImGui::ImageButton("CreditsButton", (ImTextureID)(intptr_t)creditsTexture, ImVec2(buttonWidth, buttonHeight))) {
+                std::cout << "Credits clicked" << std::endl;
+            }
 
-        // Exit gomb
-        if (ImGui::ImageButton("ExitButton", (ImTextureID)(intptr_t)exitTexture, ImVec2(250, 50))) {
-            run = false;  // Kilépés a programból
-        }
-   // Helyes lezárás
-    ImGui::End();
-    } else {
-            // Játék képernyő renderelése
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+            // Exit gomb
+            ImGui::SetCursorPosX(centerX);
+            if (ImGui::ImageButton("ExitButton", (ImTextureID)(intptr_t)exitTexture, ImVec2(buttonWidth, buttonHeight))) {
+                run = false;
+            }
+
+            ImGui::End();
+        }else {
+            // Játék képernyő renderelése SDL-lel
             RenderGameScreen(renderer, displayMode.w, displayMode.h);
         }
+    
         ImGui::Render();
-        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(),renderer);
-
-        // SDL ablak frissítése
+        ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
         SDL_RenderPresent(renderer);
 }
+
 
    
     
