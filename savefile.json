@@ -1,0 +1,8 @@
+{
+    "player": {
+        "health": 100,
+        "items": [],
+        "money": 0
+    },
+    "roomIndex": 0
+}

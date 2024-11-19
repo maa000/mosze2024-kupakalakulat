@@ -4,7 +4,13 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/include/sdl/**"
+                "${workspaceFolder}/include/sdl/**",
+                "${workspaceFolder}/include/imgui",
+                "${workspaceFolder}/include/stb",
+                "${workspaceFolder}/include/**",
+                "${workspaceFolder}/include/sdl",
+                "${workspaceFolder}/include/myheaders",
+                "${workspaceFolder}/include/nlohmann"
             ],
             "defines": [
                 "_DEBUG",
@@ -14,7 +20,7 @@
             "windowsSdkVersion": "10.0.22621.0",
             "cStandard": "c17",
             "cppStandard": "c++17",
-            "intelliSenseMode": "windows-msvc-x64",
+            "intelliSenseMode": "windows-gcc-x86",
             "compilerPath": "C:/msys64/ucrt64/bin/gcc.exe"
         }
     ],
