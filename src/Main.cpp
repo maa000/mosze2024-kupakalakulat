@@ -107,6 +107,7 @@ std::vector<int> GenerateRandomYOffsets(int numButtons, int maxOffset) {
     return yOffsets;
 }
 
+
 void DrawThickLine(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thickness) {
     float angle = atan2(y2 - y1, x2 - x1); // Vonal irányszöge
     float sinAngle = sin(angle);
@@ -130,27 +131,79 @@ void DrawThickLine(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int t
                            points[1].x + offsetX, points[1].y + offsetY);
     }
 }
+bool handleButtonClick(int mouseX, int mouseY, int screenWidth, int screenHeight) {
+    int buttonWidth = 120;
+    int buttonHeight = 120;
 
+    // Ellenőrzés: buttonDistances mérete
+    if (buttonDistances.size() < 7) {
+        std::cerr << "HIBA: buttonDistances mérete nem megfelelő! Méret: " << buttonDistances.size() << std::endl;
+        return false;
+    }
 
-void RenderGameScreen(SDL_Renderer* renderer, int screenWidth, int screenHeight) {
-    SDL_RenderCopy(renderer, gameBackgroundTexture, nullptr, nullptr); // Háttér kirajzolása
+    // Y eltolások inicializálása (ha szükséges)
+    static std::vector<int> yOffsets = GenerateRandomYOffsets(7, 50);
+    if (yOffsets.size() < 7) {
+        std::cerr << "HIBA: yOffsets mérete nem megfelelő! Méret: " << yOffsets.size() << std::endl;
+        return false;
+    }
 
-    int buttonWidth = 100;
-    int buttonHeight = 50;
-    const auto& distances = buttonDistances;
-
-    // Generáljuk az y eltéréseket
-    static std::vector<int> yOffsets = GenerateRandomYOffsets(7, 50); // Max ±50px eltérés
-
+    // Gombok vízszintes pozícióinak számítása
     int totalButtonWidth = 0;
     for (int i = 0; i < 7; ++i) {
-        totalButtonWidth += buttonWidth + distances[i];
+        totalButtonWidth += buttonWidth + buttonDistances[i];
     }
-    totalButtonWidth -= distances.back();
-
+    totalButtonWidth -= buttonDistances.back(); // Az utolsó távolságot kivonjuk
     int xPos = (screenWidth - totalButtonWidth) / 2;
 
-    // Gomb szélek tárolása
+
+    // Gombok pozíciójának ellenőrzése
+    for (int i = 0; i < 7; ++i) {
+        int yPos = (screenHeight / 2 - buttonHeight / 2) + yOffsets[i];
+        SDL_Rect buttonRect = {xPos, yPos, buttonWidth, buttonHeight};
+
+        if (mouseX >= buttonRect.x && mouseX <= buttonRect.x + buttonRect.w &&
+            mouseY >= buttonRect.y && mouseY <= buttonRect.y + buttonRect.h) {
+            std::cout << "Gomb " << i + 1 << " kattintva." << std::endl;
+            return true;
+        }
+
+        xPos += buttonWidth + buttonDistances[i];
+    }
+
+    //std::cout << "Nem kattintottál egyetlen gombra sem." << std::endl;
+    return false;
+}
+
+void RenderGameScreen(SDL_Renderer* renderer, int screenWidth, int screenHeight) {
+    if (!gameBackgroundTexture) {
+        std::cerr << "HIBA: gameBackgroundTexture nem lett betöltve!" << std::endl;
+        exit(1);
+    }
+
+    SDL_RenderCopy(renderer, gameBackgroundTexture, nullptr, nullptr);
+
+    if (buttonDistances.size() < 7) {
+        std::cerr << "HIBA: buttonDistances mérete nem megfelelő!" << std::endl;
+        exit(1);
+    }
+
+    static std::vector<int> yOffsets = GenerateRandomYOffsets(7, 50);
+    if (yOffsets.size() < 7) {
+        std::cerr << "HIBA: yOffsets mérete nem megfelelő!" << std::endl;
+        exit(1);
+    }
+
+    int buttonWidth = 120;
+    int buttonHeight = 120;
+    int totalButtonWidth = 0;
+
+    for (int i = 0; i < 7; ++i) {
+        totalButtonWidth += buttonWidth + buttonDistances[i];
+    }
+    totalButtonWidth -= buttonDistances.back();
+    int xPos = (screenWidth - totalButtonWidth) / 2;
+
     struct ButtonEdge {
         SDL_Point leftEdge;
         SDL_Point rightEdge;
@@ -169,40 +222,30 @@ void RenderGameScreen(SDL_Renderer* renderer, int screenWidth, int screenHeight)
             case 6: buttonTexture = button7Texture; break;
         }
 
-        // Az y pozíció randomizálása
-        int yPos = (screenHeight / 2 - buttonHeight / 2) + yOffsets[i];
+        if (!buttonTexture) {
+            std::cerr << "HIBA: A " << i + 1 << ". gomb textúrája nem lett betöltve!" << std::endl;
+            exit(1);
+        }
 
+        int yPos = (screenHeight / 2 - buttonHeight / 2) + yOffsets[i];
         SDL_Rect buttonRect = {xPos, yPos, buttonWidth, buttonHeight};
         SDL_RenderCopy(renderer, buttonTexture, nullptr, &buttonRect);
 
-        // Gomb bal és jobb széle
-        SDL_Point leftEdge = {buttonRect.x, buttonRect.y + buttonRect.h / 2};             // Bal szél középen
-        SDL_Point rightEdge = {buttonRect.x + buttonRect.w, buttonRect.y + buttonRect.h / 2}; // Jobb szél középen
+        SDL_Point leftEdge = {xPos, yPos + buttonHeight / 2};
+        SDL_Point rightEdge = {xPos + buttonWidth, yPos + buttonHeight / 2};
         buttonEdges.push_back({leftEdge, rightEdge});
 
-        // Kattintás ellenőrzése
-        int mouseX, mouseY;
-        Uint32 buttons = SDL_GetMouseState(&mouseX, &mouseY);
-        if (buttons & SDL_BUTTON(SDL_BUTTON_LEFT)) {
-            if (mouseX >= buttonRect.x && mouseX <= buttonRect.x + buttonRect.w &&
-                mouseY >= buttonRect.y && mouseY <= buttonRect.y + buttonRect.h) {
-                std::cout << "Button " << i + 1 << " clicked!" << std::endl;
-            }
-        }
-
-        xPos += buttonWidth + distances[i];
+        xPos += buttonWidth + buttonDistances[i];
     }
 
-    // Vonalkapcsolatok rajzolása a gombok egymás felé eső szélei között
-    SDL_SetRenderDrawColor(renderer, 157, 165, 189, SDL_ALPHA_OPAQUE); // Fehér szín
+    SDL_SetRenderDrawColor(renderer, 157, 165, 189, SDL_ALPHA_OPAQUE);
     for (size_t i = 0; i < buttonEdges.size() - 1; ++i) {
-    DrawThickLine(renderer, 
-                 buttonEdges[i].rightEdge.x, buttonEdges[i].rightEdge.y,
-                 buttonEdges[i + 1].leftEdge.x, buttonEdges[i + 1].leftEdge.y, 
-                 4); // 5 pixel vastagságú vonal
+        DrawThickLine(renderer, 
+                      buttonEdges[i].rightEdge.x, buttonEdges[i].rightEdge.y,
+                      buttonEdges[i + 1].leftEdge.x, buttonEdges[i + 1].leftEdge.y, 
+                      4);
     }
 
-    // Alapértelmezett szín visszaállítása (opcionális, ha más rajzolás is következik)
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
 }
 
@@ -277,12 +320,22 @@ int main(int argc, char* argv[]) {
     //*************FŐ LOGIKA**************//
     bool run = true;
     bool inMenu = true; // Állapotkezelés: térkép vagy játék
+    SDL_Point mouseClick = {0, 0}; // Egérkattintás pozíciója
+    bool mouseClicked = false; // Jelzi, hogy történt-e kattintás
 
     while (run) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL2_ProcessEvent(&event);
             if (event.type == SDL_QUIT) run = false;
+        
+    // Gombkattintás kezelése, ha nem a menüben vagyunk
+            // Egérkattintás kezelése
+            if (event.type == SDL_MOUSEBUTTONDOWN) {
+                mouseClick.x = event.button.x;
+                mouseClick.y = event.button.y;
+                mouseClicked = true;
+            }
         }
     
         ImGui_ImplSDL2_NewFrame();
@@ -309,6 +362,7 @@ int main(int argc, char* argv[]) {
             // New Game gomb
             ImGui::SetCursorPosX(centerX); // Vízszintes középre igazítás
             if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(buttonWidth, buttonHeight))) {
+                std::cout << "New Menu clicked" << std::endl;
                 inMenu = false; // Játék képernyőre váltás
             }
 
@@ -338,8 +392,26 @@ int main(int argc, char* argv[]) {
 
             ImGui::End();
         }else {
-            // Játék képernyő renderelése SDL-lel
-            RenderGameScreen(renderer, displayMode.w, displayMode.h);
+           
+
+            try {
+                RenderGameScreen(renderer, displayMode.w, displayMode.h);
+            } catch (const std::exception& e) {
+                std::cerr << "Hiba történt a RenderGameScreen futása közben: " << e.what() << std::endl;
+                run = false;
+            } catch (...) {
+                std::cerr << "Ismeretlen hiba történt a RenderGameScreen futása közben!" << std::endl;
+                run = false;
+            }
+
+            if (mouseClicked) {
+
+                if (!handleButtonClick(mouseClick.x, mouseClick.y, displayMode.w, displayMode.h)) {
+                   // std::cerr << "Hiba történt a gombkattintás kezelése közben!" << std::endl;
+                }
+
+                mouseClicked = false;
+            }
         }
     
         ImGui::Render();
