@@ -34,6 +34,12 @@ SDL_Texture* button5Texture;
 SDL_Texture* button6Texture;
 SDL_Texture* button7Texture;
 
+SDL_Texture* shipTexture = nullptr; // Hajó textúra
+SDL_Rect shipRect = {800, 700, 200, 200}; // Hajó pozíciója és mérete (kezdeti érték)
+
+SDL_Texture* bulletTexture = nullptr; // Lövedék textúra
+
+
 // Textúrák betöltése SDL-hez
 SDL_Texture* loadTexture(const std::string& path, SDL_Renderer* renderer) {
     SDL_Texture* newTexture = nullptr;
@@ -69,6 +75,11 @@ void LoadGameTextures(SDL_Renderer* renderer) {
     button5Texture = loadTexture("res/Finalboss_hatter.png", renderer);
     button6Texture = loadTexture("res/Finalboss_hatter.png", renderer);
     button7Texture = loadTexture("res/FinalFinalboss_hatterr.png", renderer);
+
+    bulletTexture = loadTexture("res/loves_te.png", renderer); // Lövedék sprite
+    if (!bulletTexture) {
+        std::cerr << "HIBA: Lövedék textúra betöltése sikertelen!" << std::endl;
+    }
 
     if (!gameBackgroundTexture || !button1Texture || !button2Texture || !button3Texture ||
         !button4Texture || !button5Texture || !button6Texture || !button7Texture) {
@@ -108,6 +119,46 @@ std::vector<int> GenerateRandomYOffsets(int numButtons, int maxOffset) {
 }
 
 
+class Bullet {
+public:
+    float x, y;
+    float vx, vy;
+    SDL_Texture* texture;
+
+    Bullet(float x, float y, float vx, float vy, SDL_Texture* texture)
+        : x(x), y(y), vx(vx), vy(vy), texture(texture) {}
+
+    void update(float deltaTime) {
+        x += vx * deltaTime;
+        y += vy * deltaTime;
+    }
+
+    void render(SDL_Renderer* renderer) {
+        SDL_Rect destRect = { static_cast<int>(x), static_cast<int>(y), 16, 16 };
+        SDL_RenderCopy(renderer, texture, nullptr, &destRect);
+    }
+};
+
+
+
+std::vector<Bullet> playerBullets;          // Lövedékek tárolása
+const float BULLET_SPEED = 0.5f;      // Lövedék sebessége
+
+enum GameState {
+    MENU,
+    MAP,
+    ROOM1, // A ROOM1-ROOM7 az egyes gombokhoz tartozó oldalak.
+    ROOM2,
+    ROOM3,
+    ROOM4,
+    ROOM5,
+    ROOM6,
+    ROOM7
+};
+
+GameState currentState = MENU;
+
+
 void DrawThickLine(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thickness) {
     float angle = atan2(y2 - y1, x2 - x1); // Vonal irányszöge
     float sinAngle = sin(angle);
@@ -131,6 +182,7 @@ void DrawThickLine(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int t
                            points[1].x + offsetX, points[1].y + offsetY);
     }
 }
+
 bool handleButtonClick(int mouseX, int mouseY, int screenWidth, int screenHeight) {
     int buttonWidth = 120;
     int buttonHeight = 120;
@@ -165,6 +217,8 @@ bool handleButtonClick(int mouseX, int mouseY, int screenWidth, int screenHeight
         if (mouseX >= buttonRect.x && mouseX <= buttonRect.x + buttonRect.w &&
             mouseY >= buttonRect.y && mouseY <= buttonRect.y + buttonRect.h) {
             std::cout << "Gomb " << i + 1 << " kattintva." << std::endl;
+            // Állapot módosítása
+            currentState = static_cast<GameState>(ROOM1 + i); // ROOM1-től ROOM7-ig
             return true;
         }
 
@@ -250,7 +304,21 @@ void RenderGameScreen(SDL_Renderer* renderer, int screenWidth, int screenHeight)
 }
 
 
+void RenderRoom(SDL_Renderer* renderer, const std::string& backgroundPath, SDL_Texture* shipTexture) {
+    SDL_Texture* roomBackground = loadTexture(backgroundPath, renderer);
+    if (!roomBackground) {
+        std::cerr << "HIBA: Szoba háttérkép betöltése sikertelen!" << std::endl;
+        return;
+    }
 
+    SDL_RenderCopy(renderer, roomBackground, nullptr, nullptr); // Háttér megjelenítése
+    SDL_DestroyTexture(roomBackground); // Nem kell többé
+
+    // Hajó pozíciójának és textúrájának renderelése, ha szükséges
+    if (shipTexture) {
+    SDL_RenderCopy(renderer, shipTexture, nullptr, &shipRect); // A hajó megjelenítése a frissített pozícióban
+    }
+}
 
 
 int main(int argc, char* argv[]) {
@@ -304,6 +372,8 @@ int main(int argc, char* argv[]) {
     LoadMenuTextures(renderer);
     LoadGameTextures(renderer);
 
+    
+
     buttonDistances = GenerateRandomDistances(displayMode.w, 7, 100); // Egyszeri távolsággenerálás
 
     // Háttér textúra betöltése
@@ -323,6 +393,15 @@ int main(int argc, char* argv[]) {
     SDL_Point mouseClick = {0, 0}; // Egérkattintás pozíciója
     bool mouseClicked = false; // Jelzi, hogy történt-e kattintás
 
+        // Hajó textúra betöltése
+    shipTexture = loadTexture("res/hajo1.png", renderer);
+    if (!shipTexture) {
+        std::cerr << "HIBA: hajo1.png betöltése sikertelen!" << std::endl;
+        run = false; // Ha nem sikerül betölteni, a program ne fusson tovább
+    }
+
+    bool keys[4] = {false, false, false, false}; // W, A, S, D nyomásának nyomon követése
+
     while (run) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
@@ -332,18 +411,76 @@ int main(int argc, char* argv[]) {
     // Gombkattintás kezelése, ha nem a menüben vagyunk
             // Egérkattintás kezelése
             if (event.type == SDL_MOUSEBUTTONDOWN) {
-                mouseClick.x = event.button.x;
-                mouseClick.y = event.button.y;
-                mouseClicked = true;
+                if (currentState == MAP) { // Kiemelt sor
+                    SDL_Point mouseClick = {event.button.x, event.button.y};
+                    if (handleButtonClick(mouseClick.x, mouseClick.y, displayMode.w, displayMode.h)) {
+                        // Állapotváltás a handleButtonClick-ben történik
+                    }
+    }
+}
+
+        if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
+    int mouseX, mouseY;
+    SDL_GetMouseState(&mouseX, &mouseY);
+
+    float dirX = mouseX - (shipRect.x + shipRect.w / 2);
+    float dirY = mouseY - (shipRect.y + shipRect.h / 2);
+    float length = sqrt(dirX * dirX + dirY * dirY);
+
+    if (length != 0) {
+        dirX /= length; // Normalizálás
+        dirY /= length;
+        playerBullets.emplace_back(shipRect.x + shipRect.w / 2, shipRect.y + shipRect.h / 2,
+                             dirX * BULLET_SPEED, dirY * BULLET_SPEED, bulletTexture);
+                                                                                // std::cout << "Lövés hozzáadva! (" << dirX << ", " << dirY << ")" << std::endl;
+    }
+}
+
+        // Billentyűzetes események kezelése
+        if (event.type == SDL_KEYDOWN) {
+            switch (event.key.keysym.sym) {
+                case SDLK_w: keys[0] = true; break; // W
+                case SDLK_a: keys[1] = true; break; // A
+                case SDLK_s: keys[2] = true; break; // S
+                case SDLK_d: keys[3] = true; break; // D
             }
         }
-    
+        if (event.type == SDL_KEYUP) {
+            switch (event.key.keysym.sym) {
+                case SDLK_w: keys[0] = false; break; // W
+                case SDLK_a: keys[1] = false; break; // A
+                case SDLK_s: keys[2] = false; break; // S
+                case SDLK_d: keys[3] = false; break; // D
+            }
+        }
+    }
+
+    // Mozgás frissítése (ez már a while (run) belsejében, de az események után van)
+    const int shipSpeed = 5;
+    if (keys[0]) shipRect.y -= shipSpeed; // W - felfelé
+    if (keys[1]) shipRect.x -= shipSpeed; // A - balra
+    if (keys[2]) shipRect.y += shipSpeed; // S - lefelé
+    if (keys[3]) shipRect.x += shipSpeed; // D - jobbra
+
+    // Hajó határainak ellenőrzése
+    if (shipRect.x < 0) shipRect.x = 0;
+    if (shipRect.y < 0) shipRect.y = 0;
+    if (shipRect.x + shipRect.w > displayMode.w) shipRect.x = displayMode.w - shipRect.w;
+    if (shipRect.y + shipRect.h > displayMode.h) shipRect.y = displayMode.h - shipRect.h;
+
+        
+        for (auto& bullet : playerBullets) {
+    bullet.update(16); // Frissítés minden frame-ben
+}
+
+
+
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
     
         SDL_RenderClear(renderer);
     
-         if (inMenu) {
+         if (currentState == MENU) {
             // Menü renderelése ImGui-val
             SDL_RenderCopy(renderer, backgroundTexture, nullptr, nullptr);
             ImGui::Begin("Main Menu");
@@ -363,7 +500,7 @@ int main(int argc, char* argv[]) {
             ImGui::SetCursorPosX(centerX); // Vízszintes középre igazítás
             if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(buttonWidth, buttonHeight))) {
                 std::cout << "New Menu clicked" << std::endl;
-                inMenu = false; // Játék képernyőre váltás
+                currentState = MAP;
             }
 
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
@@ -391,28 +528,50 @@ int main(int argc, char* argv[]) {
             }
 
             ImGui::End();
-        }else {
-           
+        }
+        
+        else if (currentState == MAP) { // Kiemelt sor
+            RenderGameScreen(renderer, displayMode.w, displayMode.h);
+        } 
 
-            try {
-                RenderGameScreen(renderer, displayMode.w, displayMode.h);
-            } catch (const std::exception& e) {
-                std::cerr << "Hiba történt a RenderGameScreen futása közben: " << e.what() << std::endl;
-                run = false;
-            } catch (...) {
-                std::cerr << "Ismeretlen hiba történt a RenderGameScreen futása közben!" << std::endl;
-                run = false;
-            }
+        else if (currentState >= ROOM1 && currentState <= ROOM7) {
+            RenderRoom(renderer, "res/room1.png", shipTexture); 
+                                                                                        //  + std::to_string(currentState - ROOM1 + 1) + ".png"
 
-            if (mouseClicked) {
-
-                if (!handleButtonClick(mouseClick.x, mouseClick.y, displayMode.w, displayMode.h)) {
-                   // std::cerr << "Hiba történt a gombkattintás kezelése közben!" << std::endl;
-                }
-
-                mouseClicked = false;
+            // Lövedékek kirajzolása
+            for (auto& bullet : playerBullets) {
+                bullet.render(renderer);
             }
         }
+                                                                                playerBullets.erase(std::remove_if(playerBullets.begin(), playerBullets.end(),
+                                       [&](const Bullet& b) {
+                                           return b.x < 0 || b.x > displayMode.w || b.y < 0 || b.y > displayMode.h;
+                                       }),
+                        playerBullets.end());
+
+
+        //else {
+        //   
+//
+        //    try {
+        //        RenderGameScreen(renderer, displayMode.w, displayMode.h);
+        //    } catch (const std::exception& e) {
+        //        std::cerr << "Hiba történt a RenderGameScreen futása közben: " << e.what() << std::endl;
+        //        run = false;
+        //    } catch (...) {
+        //        std::cerr << "Ismeretlen hiba történt a RenderGameScreen futása közben!" << std::endl;
+        //        run = false;
+        //    }
+//
+        //    if (mouseClicked) {
+//
+        //        if (!handleButtonClick(mouseClick.x, mouseClick.y, displayMode.w, displayMode.h)) {
+        //           // std::cerr << "Hiba történt a gombkattintás kezelése közben!" << std::endl;
+        //        }
+//
+        //        mouseClicked = false;
+        //    }
+        //}
     
         ImGui::Render();
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
@@ -439,6 +598,7 @@ int main(int argc, char* argv[]) {
     SDL_DestroyTexture(settingsTexture);
     SDL_DestroyTexture(creditsTexture);
     SDL_DestroyTexture(exitTexture);
+    SDL_DestroyTexture(shipTexture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
