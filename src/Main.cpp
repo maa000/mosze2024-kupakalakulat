@@ -138,6 +138,26 @@ public:
         SDL_RenderCopy(renderer, texture, nullptr, &destRect);
     }
 };
+// Item osztály definiálása
+class Item {
+public:
+    std::string name;           // Az item neve
+    std::string description;    // Az item leírása
+    int id;                     // Az item egyedi azonosítója
+    std::function<void()> effect; // Az item hatása (lambda vagy függvény)
+    SDL_Texture* texture;       // Az itemhez tartozó textúra
+
+    // Konstruktor
+    Item(const std::string& name, const std::string& description, int id, SDL_Texture* texture, std::function<void()> effect)
+        : name(name), description(description), id(id), texture(texture), effect(effect) {}
+
+    // Az item használata
+    void use() {
+        if (effect) {
+            effect();
+        }
+    }
+};
 
 
 
