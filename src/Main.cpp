@@ -1,6 +1,5 @@
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
-//#include <SDL_opengl.h>
 #include <imgui.h>
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
@@ -16,6 +15,9 @@
 #include "myheaders/Player.h"
 #include <SDL_image.h>
 
+
+Player player(100, 0, 0); // Player objektum létrehozása
+SDL_Texture* shipTexture = nullptr; // Hajó textúra
 // Globális textúra változók
 SDL_Texture* newGameTexture;
 SDL_Texture* settingsTexture;
@@ -34,8 +36,6 @@ SDL_Texture* button5Texture;
 SDL_Texture* button6Texture;
 SDL_Texture* button7Texture;
 
-SDL_Texture* shipTexture = nullptr; // Hajó textúra
-SDL_Rect shipRect = {800, 700, 200, 200}; // Hajó pozíciója és mérete (kezdeti érték)
 
 SDL_Texture* bulletTexture = nullptr; // Lövedék textúra
 
@@ -316,12 +316,13 @@ void RenderRoom(SDL_Renderer* renderer, const std::string& backgroundPath, SDL_T
 
     // Hajó pozíciójának és textúrájának renderelése, ha szükséges
     if (shipTexture) {
-    SDL_RenderCopy(renderer, shipTexture, nullptr, &shipRect); // A hajó megjelenítése a frissített pozícióban
+    SDL_RenderCopy(renderer, shipTexture, nullptr, &player.position); // A hajó megjelenítése a frissített pozícióban
     }
 }
-
+void TestPlayerClass();
 
 int main(int argc, char* argv[]) {
+    TestPlayerClass();
     
        // SDL inicializálása
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -423,17 +424,17 @@ int main(int argc, char* argv[]) {
     int mouseX, mouseY;
     SDL_GetMouseState(&mouseX, &mouseY);
 
-    float dirX = mouseX - (shipRect.x + shipRect.w / 2);
-    float dirY = mouseY - (shipRect.y + shipRect.h / 2);
-    float length = sqrt(dirX * dirX + dirY * dirY);
+    float dirX = mouseX - (player.position.x + player.position.w / 2);
+                float dirY = mouseY - (player.position.y + player.position.h / 2);
+                float length = sqrt(dirX * dirX + dirY * dirY);
 
-    if (length != 0) {
-        dirX /= length; // Normalizálás
-        dirY /= length;
-        playerBullets.emplace_back(shipRect.x + shipRect.w / 2, shipRect.y + shipRect.h / 2,
-                             dirX * BULLET_SPEED, dirY * BULLET_SPEED, bulletTexture);
-                                                                                // std::cout << "Lövés hozzáadva! (" << dirX << ", " << dirY << ")" << std::endl;
-    }
+                if (length != 0) {
+                    dirX /= length; // Normalizálás
+                    dirY /= length;
+                    playerBullets.emplace_back(player.position.x + player.position.w / 2,
+                                               player.position.y + player.position.h / 2,
+                                               dirX * BULLET_SPEED, dirY * BULLET_SPEED, bulletTexture);
+                }
 }
 
         // Billentyűzetes események kezelése
@@ -456,17 +457,17 @@ int main(int argc, char* argv[]) {
     }
 
     // Mozgás frissítése (ez már a while (run) belsejében, de az események után van)
-    const int shipSpeed = 5;
-    if (keys[0]) shipRect.y -= shipSpeed; // W - felfelé
-    if (keys[1]) shipRect.x -= shipSpeed; // A - balra
-    if (keys[2]) shipRect.y += shipSpeed; // S - lefelé
-    if (keys[3]) shipRect.x += shipSpeed; // D - jobbra
+   const int shipSpeed = 5;
+    if (keys[0]) player.position.y -= shipSpeed; // Felfelé
+    if (keys[1]) player.position.x -= shipSpeed; // Balra
+    if (keys[2]) player.position.y += shipSpeed; // Lefelé
+    if (keys[3]) player.position.x += shipSpeed; // Jobbra
 
-    // Hajó határainak ellenőrzése
-    if (shipRect.x < 0) shipRect.x = 0;
-    if (shipRect.y < 0) shipRect.y = 0;
-    if (shipRect.x + shipRect.w > displayMode.w) shipRect.x = displayMode.w - shipRect.w;
-    if (shipRect.y + shipRect.h > displayMode.h) shipRect.y = displayMode.h - shipRect.h;
+    // Képernyőhatárok ellenőrzése
+    if (player.position.x < 0) player.position.x = 0;
+    if (player.position.y < 0) player.position.y = 0;
+    if (player.position.x + player.position.w > displayMode.w) player.position.x = displayMode.w - player.position.w;
+    if (player.position.y + player.position.h > displayMode.h) player.position.y = displayMode.h - player.position.h;
 
         
         for (auto& bullet : playerBullets) {
