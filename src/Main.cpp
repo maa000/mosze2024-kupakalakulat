@@ -13,31 +13,10 @@
 #include "myheaders/Map.h"
 #include "myheaders/Room.h"
 #include "myheaders/Player.h"
+#include "myheaders/Enemy.h"
+#include "myheaders/Globals.h"
+
 #include <SDL_image.h>
-
-
-Player player(100, 0, 0); // Player objektum létrehozása
-SDL_Texture* shipTexture = nullptr; // Hajó textúra
-// Globális textúra változók
-SDL_Texture* newGameTexture;
-SDL_Texture* settingsTexture;
-SDL_Texture* creditsTexture;
-SDL_Texture* exitTexture;
-SDL_Texture* gameBackgroundTexture;
-
-std::vector<int> buttonDistances;
-
-// Gomb textúrák
-SDL_Texture* button1Texture;//room0
-SDL_Texture* button2Texture;//room1
-SDL_Texture* button3Texture;//stb
-SDL_Texture* button4Texture;
-SDL_Texture* button5Texture;
-SDL_Texture* button6Texture;
-SDL_Texture* button7Texture;
-
-
-SDL_Texture* bulletTexture = nullptr; // Lövedék textúra
 
 
 // Textúrák betöltése SDL-hez
@@ -85,6 +64,28 @@ void LoadGameTextures(SDL_Renderer* renderer) {
         !button4Texture || !button5Texture || !button6Texture || !button7Texture) {
         std::cerr << "Egy vagy több játék textúra betöltése sikertelen!" << std::endl;
     }
+
+    enemyTexture = loadTexture("res/enemy1.png", renderer);
+    if (!enemyTexture) {
+        std::cerr << "Ellenség textúra betöltési hiba!" << std::endl;
+}
+
+    if (!enemyTexture) {
+        std::cerr << "HIBA: Nem sikerült betölteni az enemy textúrát! Ellenőrizd az elérési utat: res/hajo1.png" << std::endl;
+    }
+}
+
+    void TestTexturesFunc() {
+    if (!gameBackgroundTexture) std::cerr << "HIBA: gameBackgroundTexture nem töltődött be!" << std::endl;
+    if (!button1Texture) std::cerr << "HIBA: button1Texture nem töltődött be!" << std::endl;
+    if (!button2Texture) std::cerr << "HIBA: button2Texture nem töltődött be!" << std::endl;
+    if (!button3Texture) std::cerr << "HIBA: button3Texture nem töltődött be!" << std::endl;
+    if (!button4Texture) std::cerr << "HIBA: button4Texture nem töltődött be!" << std::endl;
+    if (!button5Texture) std::cerr << "HIBA: button5Texture nem töltődött be!" << std::endl;
+    if (!button6Texture) std::cerr << "HIBA: button6Texture nem töltődött be!" << std::endl;
+    if (!button7Texture) std::cerr << "HIBA: button7Texture nem töltődött be!" << std::endl;
+    if (!enemyTexture) std::cerr << "HIBA: enemyTexture nem töltődött be!" << std::endl;
+    if (!bulletTexture) std::cerr << "HIBA: bulletTexture nem töltődött be!" << std::endl;
 }
 
 // Véletlenszerű távolságok generálása a gombokhoz
@@ -119,38 +120,19 @@ std::vector<int> GenerateRandomYOffsets(int numButtons, int maxOffset) {
 }
 
 
-class Bullet {
-public:
-    float x, y;
-    float vx, vy;
-    SDL_Texture* texture;
-
-    Bullet(float x, float y, float vx, float vy, SDL_Texture* texture)
-        : x(x), y(y), vx(vx), vy(vy), texture(texture) {}
-
-    void update(float deltaTime) {
-        x += vx * deltaTime;
-        y += vy * deltaTime;
-    }
-
-    void render(SDL_Renderer* renderer) {
-        SDL_Rect destRect = { static_cast<int>(x), static_cast<int>(y), 16, 16 };
-        SDL_RenderCopy(renderer, texture, nullptr, &destRect);
-    }
-};
 // Item osztály definiálása
 class Item {
 public:
     std::string name;           // Az item neve
     std::string description;    // Az item leírása
     int id;                     // Az item egyedi azonosítója
-    std::function<void()> effect; // Az item hatása (lambda vagy függvény)
     SDL_Texture* texture;       // Az itemhez tartozó textúra
+    std::function<void()> effect; // Az item hatása (lambda vagy függvény)
 
     // Konstruktor
     Item(const std::string& name, const std::string& description, int id, SDL_Texture* texture, std::function<void()> effect)
         : name(name), description(description), id(id), texture(texture), effect(effect) {}
-
+    
     // Az item használata
     void use() {
         if (effect) {
@@ -158,25 +140,6 @@ public:
         }
     }
 };
-
-
-
-std::vector<Bullet> playerBullets;          // Lövedékek tárolása
-const float BULLET_SPEED = 0.5f;      // Lövedék sebessége
-
-enum GameState {
-    MENU,
-    MAP,
-    ROOM1, // A ROOM1-ROOM7 az egyes gombokhoz tartozó oldalak.
-    ROOM2,
-    ROOM3,
-    ROOM4,
-    ROOM5,
-    ROOM6,
-    ROOM7
-};
-
-GameState currentState = MENU;
 
 
 void DrawThickLine(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thickness) {
@@ -338,6 +301,15 @@ void RenderRoom(SDL_Renderer* renderer, const std::string& backgroundPath, SDL_T
     if (shipTexture) {
     SDL_RenderCopy(renderer, shipTexture, nullptr, &player.position); // A hajó megjelenítése a frissített pozícióban
     }
+    if (currentState = ROOM2) {
+        for (const auto& enemy : enemies) {
+            SDL_Rect enemyRect = {static_cast<int>(enemy.x), static_cast<int>(enemy.y), enemy.width, enemy.height};
+            SDL_RenderCopy(renderer, enemyTexture, nullptr, &enemyRect);
+            }
+    }
+    if (currentState != ROOM2) {
+    enemies.clear(); // Töröld az összes ellenséget, amikor nem ROOM2-ben vagy
+}
 }
 void TestPlayerClass();
 
@@ -393,7 +365,8 @@ int main(int argc, char* argv[]) {
     LoadMenuTextures(renderer);
     LoadGameTextures(renderer);
 
-    
+
+    TestTexturesFunc();
 
     buttonDistances = GenerateRandomDistances(displayMode.w, 7, 100); // Egyszeri távolsággenerálás
 
@@ -476,6 +449,49 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    int enemiesDefeated = 0; // Globális változó a legyőzött ellenségek számának nyilvántartására
+
+    
+
+    // Ellenségek spawnolása
+        if (currentState == ROOM2 && SDL_GetTicks() - lastEnemySpawnTime >= spawnInterval) {
+        float x = std::rand() % (displayMode.w / 4);
+        float y = std::rand() % (displayMode.h / 4);
+        enemies.emplace_back(100, 10, 0.5f, 0.2f, 3, enemyTexture);
+        lastEnemySpawnTime = SDL_GetTicks();
+    }
+
+
+
+    if (!enemyTexture) {
+    std::cerr << "HIBA: Nem sikerült betölteni az enemy textúrát!" << std::endl;
+    return 1;
+    }
+
+    // Ellenségek frissítése
+    if (currentState == ROOM2) {
+    // Ellenségek frissítése
+        for (auto& enemy : enemies) {
+            enemy.update(16); // Delta idő 16ms
+            if (std::rand() % 100 < 5) { // Véletlenszerű lövés
+                enemy.shoot(bulletTexture);
+            }
+        }
+
+    // Töröld a képernyőn kívüli ellenségeket
+    enemies.erase(std::remove_if(enemies.begin(), enemies.end(),
+                             [&displayMode](const Enemy& e) { return e.y > displayMode.h || !e.isAlive(); }),
+              enemies.end());
+
+    
+
+    std::cout << "Ellenségek száma: " << enemies.size() << std::endl;
+    for (const auto& enemy : enemies) {
+        std::cout << "Enemy at position (" << enemy.x << ", " << enemy.y << ")" << std::endl;
+    }
+    }
+
+
     // Mozgás frissítése (ez már a while (run) belsejében, de az események után van)
    const int shipSpeed = 5;
     if (keys[0]) player.position.y -= shipSpeed; // Felfelé
@@ -489,9 +505,45 @@ int main(int argc, char* argv[]) {
     if (player.position.x + player.position.w > displayMode.w) player.position.x = displayMode.w - player.position.w;
     if (player.position.y + player.position.h > displayMode.h) player.position.y = displayMode.h - player.position.h;
 
-        
-        for (auto& bullet : playerBullets) {
+    for (auto& bullet : playerBullets) {
     bullet.update(16); // Frissítés minden frame-ben
+}
+
+        
+    for (auto bulletIt = playerBullets.begin(); bulletIt != playerBullets.end();) {
+    bool bulletRemoved = false;
+
+    for (auto enemyIt = enemies.begin(); enemyIt != enemies.end();) {
+        SDL_Rect bulletRect = {static_cast<int>(bulletIt->x), static_cast<int>(bulletIt->y), 16, 16};
+        SDL_Rect enemyRect = {static_cast<int>(enemyIt->x), static_cast<int>(enemyIt->y), enemyIt->width, enemyIt->height};
+
+        if (checkCollision(bulletRect, enemyRect)) {
+            std::cout << "Bullet hit enemy at (" << enemyIt->x << ", " << enemyIt->y << ")" << std::endl;
+
+            // Decrease enemy health
+            enemyIt->health -= 1;
+
+            // Remove enemy if health is zero
+            if (enemyIt->health <= 0) {
+                std::cout << "Enemy destroyed at (" << enemyIt->x << ", " << enemyIt->y << ")" << std::endl;
+                enemyIt = enemies.erase(enemyIt); // Correct iterator handling
+            } else {
+                ++enemyIt;
+            }
+
+            // Remove bullet and exit the enemy loop
+            bulletIt = playerBullets.erase(bulletIt);
+            bulletRemoved = true;
+            break;
+        } else {
+            ++enemyIt;  
+        }
+    }
+
+    if (!bulletRemoved) {
+        bulletIt->update(16); // Update bullet here before advancing
+        ++bulletIt; // Only advance if not erased
+    }
 }
 
 
@@ -553,6 +605,19 @@ int main(int argc, char* argv[]) {
         
         else if (currentState == MAP) { // Kiemelt sor
             RenderGameScreen(renderer, displayMode.w, displayMode.h);
+            // Ellenségek frissítése után, a törlés előtt
+            for (auto& enemy : enemies) {
+                if (!enemy.isAlive()) {
+                    ++enemiesDefeated;
+                }
+    }
+ 
+    // Ellenőrizd, hogy vége van-e a szobának
+    if (enemiesDefeated >= 20) {
+        currentState = MAP; // Visszalépés a térkép nézetre
+        enemiesDefeated = 0; // Számláló visszaállítása
+        enemies.clear();     // Az ellenségek listájának ürítése
+    }
         } 
 
         else if (currentState >= ROOM1 && currentState <= ROOM7) {
