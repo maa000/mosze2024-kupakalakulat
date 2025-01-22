@@ -1,5 +1,6 @@
 #include "Globals.h"
 #include "Bullet.h" // Szükséges a std::vector<Bullet> miatt
+#include <SDL_ttf.h>
 
 // Globális változók definíciói
 Player player(100, 0, 0);
@@ -25,6 +26,9 @@ const Uint32 spawnInterval = 3000;
 std::vector<Bullet> playerBullets;
 GameState currentState = MENU;
 const float BULLET_SPEED = 0.5f;
+//eletero szazalek
+float playerHealth = 100.0f; // Játékos kezdő életereje (100%)
+TTF_Font* font = nullptr;
 
 bool checkCollision(const SDL_Rect& rectA, const SDL_Rect& rectB) {
     return rectA.x < rectB.x + rectB.w &&

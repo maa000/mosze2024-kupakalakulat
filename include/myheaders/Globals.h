@@ -7,6 +7,7 @@
 #include "Enemy.h"
 #include "Bullet.h"
 
+#include <SDL_ttf.h>
 
 // Enum a játék állapotaihoz
 enum GameState {
@@ -46,7 +47,9 @@ extern std::vector<Bullet> playerBullets;
 extern GameState currentState;
 extern const float BULLET_SPEED;
 bool checkCollision(const SDL_Rect& rectA, const SDL_Rect& rectB);
-
+//eletero
+extern float playerHealth; // Játékos életereje százalékban
+extern TTF_Font* font;
 
 
 #endif // GLOBALS_H

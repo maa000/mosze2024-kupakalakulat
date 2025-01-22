@@ -16,8 +16,10 @@
 #include "myheaders/Enemy.h"
 #include "myheaders/Globals.h"
 
-#include <SDL_image.h>
+#include <SDL_ttf.h>
+#include "Globals.h"
 
+#include <SDL_image.h>
 
 // Textúrák betöltése SDL-hez
 SDL_Texture* loadTexture(const std::string& path, SDL_Renderer* renderer) {
@@ -301,7 +303,7 @@ void RenderRoom(SDL_Renderer* renderer, const std::string& backgroundPath, SDL_T
     if (shipTexture) {
     SDL_RenderCopy(renderer, shipTexture, nullptr, &player.position); // A hajó megjelenítése a frissített pozícióban
     }
-    if (currentState = ROOM2) {
+    if (currentState == ROOM2) {
         for (const auto& enemy : enemies) {
             SDL_Rect enemyRect = {static_cast<int>(enemy.x), static_cast<int>(enemy.y), enemy.width, enemy.height};
             SDL_RenderCopy(renderer, enemyTexture, nullptr, &enemyRect);
@@ -311,11 +313,46 @@ void RenderRoom(SDL_Renderer* renderer, const std::string& backgroundPath, SDL_T
     enemies.clear(); // Töröld az összes ellenséget, amikor nem ROOM2-ben vagy
 }
 }
+
+void renderHealthBar(SDL_Renderer* renderer) {
+    int barWidth = 200;
+    int barHeight = 20;
+    int x = 10;
+    int y = 10;
+
+    // Háttérsáv (piros)
+    SDL_Rect backgroundRect = {x, y, barWidth, barHeight};
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    SDL_RenderFillRect(renderer, &backgroundRect);
+
+    // Aktuális életerő sáv (zöld)
+    SDL_Rect healthRect = {x, y, static_cast<int>(barWidth * (playerHealth / 100.0f)), barHeight};
+    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+    SDL_RenderFillRect(renderer, &healthRect);
+
+    // Szöveg kirajzolása (százalékos érték)
+    SDL_Color white = {255, 255, 255};
+    std::string healthText = std::to_string(static_cast<int>(playerHealth)) + "%";
+    SDL_Surface* textSurface = TTF_RenderText_Solid(font, healthText.c_str(), white);
+    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+
+    SDL_Rect textRect = {x, y - 30, textSurface->w, textSurface->h};
+    SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
+
+    SDL_FreeSurface(textSurface);
+    SDL_DestroyTexture(textTexture);
+}
+
+
+
 void TestPlayerClass();
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]) { 
     TestPlayerClass();
-    
+    if (TTF_Init() == -1) {
+    std::cerr << "SDL_ttf inicializálási hiba: " << TTF_GetError() << std::endl;
+    return -1;
+}
        // SDL inicializálása
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "SDL inicializálási hiba: " << SDL_GetError() << std::endl;
@@ -328,6 +365,12 @@ int main(int argc, char* argv[]) {
         return -1;
     }
   
+    font = TTF_OpenFont("res/arial.ttf", 24); // Betűtípus elérési útvonala
+    if (!font) {
+        std::cerr << "Betűtípus betöltési hiba: " << TTF_GetError() << std::endl;
+        return -1;
+}
+
     // Teljes képernyős ablak létrehozása
     SDL_DisplayMode displayMode;
     SDL_GetCurrentDisplayMode(0, &displayMode); // Fő monitor mérete
@@ -401,6 +444,13 @@ int main(int argc, char* argv[]) {
         while (SDL_PollEvent(&event)) {
             ImGui_ImplSDL2_ProcessEvent(&event);
             if (event.type == SDL_QUIT) run = false;
+           
+    // Kirajzolás elkezdése (képernyő törlése)
+    SDL_RenderClear(renderer);
+
+    // Az életerő sáv kirajzolása
+    renderHealthBar(renderer);
+ 
         
     // Gombkattintás kezelése, ha nem a menüben vagyunk
             // Egérkattintás kezelése
@@ -429,6 +479,34 @@ int main(int argc, char* argv[]) {
                                                dirX * BULLET_SPEED, dirY * BULLET_SPEED, bulletTexture);
                 }
 }
+//ellenőrzéshez
+for (auto& enemy : enemies) {
+    for (auto& bullet : enemy.bullets) {
+        SDL_Rect bulletRect = {static_cast<int>(bullet.x), static_cast<int>(bullet.y), 16, 16};
+        SDL_Rect playerRect = {static_cast<int>(player.position.x), static_cast<int>(player.position.y),
+                               player.position.w, player.position.h};
+
+        if (checkCollision(bulletRect, playerRect)) {
+            std::cout << "Player hit by enemy bullet!" << std::endl;
+
+            // Életerő csökkentése
+            playerHealth -= 10.0f;
+
+            if (playerHealth <= 0.0f) {
+                std::cout << "Player is dead!" << std::endl;
+                currentState = MENU; // Vissza a főmenübe
+            }
+
+            // Lövedék eltávolítása
+            enemy.bullets.erase(std::remove(enemy.bullets.begin(), enemy.bullets.end(), bullet), enemy.bullets.end());
+            break;
+        }
+    }
+}
+
+
+
+
 
         // Billentyűzetes események kezelése
         if (event.type == SDL_KEYDOWN) {
@@ -662,9 +740,8 @@ int main(int argc, char* argv[]) {
         ImGui::Render();
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), renderer);
         SDL_RenderPresent(renderer);
-}
 
-
+    }
    
     
 
@@ -689,6 +766,9 @@ int main(int argc, char* argv[]) {
     SDL_DestroyWindow(window);
     IMG_Quit();
     SDL_Quit();
+
+    TTF_CloseFont(font);
+    TTF_Quit();
 
     return 0;
 }
