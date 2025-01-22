@@ -1,5 +1,6 @@
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
+#include <SDL_ttf.h>
 #include <imgui.h>
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_sdlrenderer2.h"
@@ -9,6 +10,9 @@
 #include <cstdlib> // Véletlen számokhoz
 #include <ctime>
 #include <cmath>
+#include <fstream>
+#include <string>
+#include <map>
 #include "myheaders/SaveManager.h"
 #include "myheaders/Map.h"
 #include "myheaders/Room.h"
@@ -34,6 +38,112 @@ SDL_Texture* loadTexture(const std::string& path, SDL_Renderer* renderer) {
     }
     return newTexture;
 }
+
+// Load a story from a text fil-e
+std::string loadStory(const std::string& filePath) {
+    std::ifstream file(filePath);
+    if (!file.is_open()) {
+        std::cerr << "HIBA: Nem sikerült megnyitni a fájlt: " << filePath << std::endl;
+        return "";
+    }
+    std::string content((std::istreambuf_iterator<char>(file)),
+                        std::istreambuf_iterator<char>());
+    std::cout << "Betöltött szöveg: " << content << std::endl; // Debug: megjeleníti a betöltött szöveget
+    return content;
+}
+// Display story text on screen
+void displayStory(SDL_Renderer* renderer, const std::string& storyText, TTF_Font* font) {
+    SDL_Color textColor = {255, 255, 255, 255}; // Fehér szöveg
+    SDL_Surface* textSurface = TTF_RenderText_Blended_Wrapped(font, storyText.c_str(), textColor, 800);
+    if (!textSurface) {
+        std::cerr << "HIBA: Szöveg renderelése sikertelen: " << TTF_GetError() << std::endl;
+        return;
+    }
+
+    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    SDL_FreeSurface(textSurface);
+    if (!textTexture) {
+        std::cerr << "HIBA: Textúra létrehozási hiba: " << SDL_GetError() << std::endl;
+        return;
+    }
+
+    SDL_Rect textRect = {240, 200, 800, 400}; // Szöveg pozíció és méret
+    SDL_Event event;
+    bool wait = true;
+
+    while (wait) {
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Fekete háttér
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, textTexture, nullptr, &textRect);
+    SDL_RenderPresent(renderer);
+
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_SPACE) {
+            std::cout << "DEBUG: SPACE lenyomva, kilépés a történetből" << std::endl;
+            wait = false; // Kilépés a várakozásból
+        } else if (event.type == SDL_QUIT) {
+            SDL_DestroyTexture(textTexture);
+            exit(0); // Kilépés a programból
+        }
+    }
+
+    SDL_Delay(16); // Csökkenti a processzor terhelését
+}
+
+    SDL_DestroyTexture(textTexture);
+}
+
+
+
+
+
+// Enhanced RenderRoom function to handle story display
+void RenderRoomWithStory(SDL_Renderer* renderer, const std::string& backgroundPath, SDL_Texture* shipTexture, TTF_Font* font) {
+    static std::map<int, std::string> stories = {
+        {STORY_ROOM1, loadStory("story/1.txt")},
+        {STORY_ROOM3, loadStory("story/2.txt")},
+        {STORY_ROOM7, loadStory("story/3.txt")}
+    };
+
+    // Háttér betöltése
+    SDL_Texture* roomBackground = loadTexture(backgroundPath, renderer);
+    if (!roomBackground) {
+        std::cerr << "HIBA: Szoba háttérkép betöltése sikertelen!" << std::endl;
+        return;
+    }
+
+    SDL_RenderCopy(renderer, roomBackground, nullptr, nullptr); // Háttér renderelése
+    SDL_DestroyTexture(roomBackground);
+
+    // Ha van történet a jelenlegi állapothoz, megjelenítjük
+    if (stories.count(currentState)) {
+        displayStory(renderer, stories[currentState], font);
+       switch (currentState) {
+            case GameState::STORY_ROOM1:
+                currentState = GameState::ROOM1;
+                break;
+            case GameState::STORY_ROOM3:
+                currentState = GameState::ROOM3;
+                break;
+            case GameState::STORY_ROOM7:
+                currentState = GameState::ROOM7;
+                break;
+            default:
+                break;
+        }
+
+    } else {
+        std::cout << "DEBUG: Ehhez az állapothoz nincs történet!" << std::endl;
+    }
+
+    // Hajó renderelése, ha van textúra
+    if (shipTexture) {
+        SDL_RenderCopy(renderer, shipTexture, nullptr, &player.position);
+    }
+}
+
+
+
 // Menü textúrák betöltése
 void LoadMenuTextures(SDL_Renderer* renderer) {
     newGameTexture = loadTexture("res/newgame.png", renderer);
@@ -201,7 +311,12 @@ bool handleButtonClick(int mouseX, int mouseY, int screenWidth, int screenHeight
             mouseY >= buttonRect.y && mouseY <= buttonRect.y + buttonRect.h) {
             std::cout << "Gomb " << i + 1 << " kattintva." << std::endl;
             // Állapot módosítása
-            currentState = static_cast<GameState>(ROOM1 + i); // ROOM1-től ROOM7-ig
+            //currentState = static_cast<GameState>(ROOM1 + i); // ROOM1-től ROOM7-ig
+            if (i == 0) currentState = GameState::STORY_ROOM1;
+            else if (i == 2) currentState = GameState::STORY_ROOM3;
+            else if (i == 6) currentState = GameState::STORY_ROOM7;
+            else currentState = static_cast<GameState>(ROOM1 + i+1); // Ha nincs történet
+
             return true;
         }
 
@@ -211,6 +326,7 @@ bool handleButtonClick(int mouseX, int mouseY, int screenWidth, int screenHeight
     //std::cout << "Nem kattintottál egyetlen gombra sem." << std::endl;
     return false;
 }
+
 
 void RenderGameScreen(SDL_Renderer* renderer, int screenWidth, int screenHeight) {
     if (!gameBackgroundTexture) {
@@ -301,7 +417,7 @@ void RenderRoom(SDL_Renderer* renderer, const std::string& backgroundPath, SDL_T
     if (shipTexture) {
     SDL_RenderCopy(renderer, shipTexture, nullptr, &player.position); // A hajó megjelenítése a frissített pozícióban
     }
-    if (currentState = ROOM2) {
+    if (currentState == ROOM2) {
         for (const auto& enemy : enemies) {
             SDL_Rect enemyRect = {static_cast<int>(enemy.x), static_cast<int>(enemy.y), enemy.width, enemy.height};
             SDL_RenderCopy(renderer, enemyTexture, nullptr, &enemyRect);
@@ -314,7 +430,14 @@ void RenderRoom(SDL_Renderer* renderer, const std::string& backgroundPath, SDL_T
 void TestPlayerClass();
 
 int main(int argc, char* argv[]) {
+
     TestPlayerClass();
+    TTF_Font* fontTeszt = TTF_OpenFont("res/font.ttf", 24);
+    if (!fontTeszt) {
+    std::cerr << "HIBA: Betűtípus betöltése sikertelen: " << TTF_GetError() << std::endl;
+    TTF_Quit();
+    SDL_Quit();
+}
     
        // SDL inicializálása
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
@@ -327,7 +450,27 @@ int main(int argc, char* argv[]) {
         SDL_Quit();
         return -1;
     }
-  
+    if (TTF_Init() == -1) {
+    std::cerr << "TTF inicializálási hiba: " << TTF_GetError() << std::endl;
+    return -1;
+} else {
+    std::cout << "TTF könyvtár sikeresen inicializálva!" << std::endl;
+}
+std::ifstream fontFile("res/font.ttf");
+if (!fontFile.is_open()) {
+    std::cerr << "HIBA: Nem található a betűtípus fájl: res/font.ttf" << std::endl;
+    return -1;
+} else {
+    std::cout << "Betűtípus fájl elérhető!" << std::endl;
+}
+
+TTF_Font* font = TTF_OpenFont("res/font.ttf", 24);
+if (!font) {
+    std::cerr << "HIBA: Betűtípus betöltése sikertelen: " << TTF_GetError() << std::endl;
+    return -1;
+} else {
+    std::cout << "Betűtípus sikeresen betöltve!" << std::endl;
+}
     // Teljes képernyős ablak létrehozása
     SDL_DisplayMode displayMode;
     SDL_GetCurrentDisplayMode(0, &displayMode); // Fő monitor mérete
@@ -337,6 +480,8 @@ int main(int argc, char* argv[]) {
     if (!window) {
         std::cerr << "SDL_Window létrehozási hiba: " << SDL_GetError() << std::endl;
         IMG_Quit();
+        TTF_CloseFont(font);
+        TTF_Quit();
         SDL_Quit();
         return -1;
     }
@@ -348,6 +493,8 @@ int main(int argc, char* argv[]) {
         SDL_DestroyWindow(window);
         IMG_Quit();
         SDL_Quit();
+        TTF_CloseFont(font);
+        TTF_Quit();
         return -1;
     }
     // ImGui inicializálása
@@ -490,7 +637,24 @@ int main(int argc, char* argv[]) {
         std::cout << "Enemy at position (" << enemy.x << ", " << enemy.y << ")" << std::endl;
     }
     }
+    if (currentState == GameState::STORY_ROOM1 || 
+    currentState == GameState::STORY_ROOM3 || 
+    currentState == GameState::STORY_ROOM7) {
+    RenderRoomWithStory(renderer, "res/room1.png", shipTexture, font);
+} else if (currentState == GameState::ROOM1 || 
+           currentState == GameState::ROOM3 || 
+           currentState == GameState::ROOM7) {
+    RenderRoom(renderer, "res/room1.png", shipTexture);
+} else {
+    // Clear screen
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
+    SDL_RenderClear(renderer);
 
+    // Például a játékos vagy más elemek megjelenítése
+    if (shipTexture) {
+        SDL_RenderCopy(renderer, shipTexture, nullptr, &player.position);
+    }
+}
 
     // Mozgás frissítése (ez már a while (run) belsejében, de az események után van)
    const int shipSpeed = 5;
@@ -518,14 +682,14 @@ int main(int argc, char* argv[]) {
         SDL_Rect enemyRect = {static_cast<int>(enemyIt->x), static_cast<int>(enemyIt->y), enemyIt->width, enemyIt->height};
 
         if (checkCollision(bulletRect, enemyRect)) {
-            std::cout << "Bullet hit enemy at (" << enemyIt->x << ", " << enemyIt->y << ")" << std::endl;
+           // std::cout << "Bullet hit enemy at (" << enemyIt->x << ", " << enemyIt->y << ")" << std::endl;
 
             // Decrease enemy health
             enemyIt->health -= 1;
 
             // Remove enemy if health is zero
             if (enemyIt->health <= 0) {
-                std::cout << "Enemy destroyed at (" << enemyIt->x << ", " << enemyIt->y << ")" << std::endl;
+               // std::cout << "Enemy destroyed at (" << enemyIt->x << ", " << enemyIt->y << ")" << std::endl;
                 enemyIt = enemies.erase(enemyIt); // Correct iterator handling
             } else {
                 ++enemyIt;
@@ -573,7 +737,7 @@ int main(int argc, char* argv[]) {
             ImGui::SetCursorPosX(centerX); // Vízszintes középre igazítás
             if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(buttonWidth, buttonHeight))) {
                 std::cout << "New Menu clicked" << std::endl;
-                currentState = MAP;
+                currentState = GameState::MAP;
             }
 
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
@@ -614,7 +778,7 @@ int main(int argc, char* argv[]) {
  
     // Ellenőrizd, hogy vége van-e a szobának
     if (enemiesDefeated >= 20) {
-        currentState = MAP; // Visszalépés a térkép nézetre
+        currentState = GameState::MAP; // Visszalépés a térkép nézetre
         enemiesDefeated = 0; // Számláló visszaállítása
         enemies.clear();     // Az ellenségek listájának ürítése
     }
@@ -688,6 +852,8 @@ int main(int argc, char* argv[]) {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     IMG_Quit();
+    TTF_CloseFont(font);
+    TTF_Quit();
     SDL_Quit();
 
     return 0;
