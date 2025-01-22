@@ -55,8 +55,13 @@ void LoadGameTextures(SDL_Renderer* renderer) {
     button6Texture = loadTexture("res/Finalboss_hatter.png", renderer);
     button7Texture = loadTexture("res/FinalFinalboss_hatterr.png", renderer);
 
-    bulletTexture = loadTexture("res/loves_te.png", renderer); // Lövedék sprite
-    if (!bulletTexture) {
+    playerBulletTexture = loadTexture("res/loves_2.png", renderer); // Lövedék sprite
+    if (!playerBulletTexture) {
+        std::cerr << "HIBA: Lövedék textúra betöltése sikertelen!" << std::endl;
+    }
+
+    enemyBulletTexture = loadTexture("res/loves_1.png", renderer); // Lövedék sprite
+    if (!enemyBulletTexture) {
         std::cerr << "HIBA: Lövedék textúra betöltése sikertelen!" << std::endl;
     }
 
@@ -85,7 +90,8 @@ void LoadGameTextures(SDL_Renderer* renderer) {
     if (!button6Texture) std::cerr << "HIBA: button6Texture nem töltődött be!" << std::endl;
     if (!button7Texture) std::cerr << "HIBA: button7Texture nem töltődött be!" << std::endl;
     if (!enemyTexture) std::cerr << "HIBA: enemyTexture nem töltődött be!" << std::endl;
-    if (!bulletTexture) std::cerr << "HIBA: bulletTexture nem töltődött be!" << std::endl;
+    if (!playerBulletTexture) std::cerr << "HIBA: bulletTexture nem töltődött be!" << std::endl;
+    if (!enemyBulletTexture) std::cerr << "HIBA: bulletTexture nem töltődött be!" << std::endl;
 }
 
 // Véletlenszerű távolságok generálása a gombokhoz
@@ -301,7 +307,7 @@ void RenderRoom(SDL_Renderer* renderer, const std::string& backgroundPath, SDL_T
     if (shipTexture) {
     SDL_RenderCopy(renderer, shipTexture, nullptr, &player.position); // A hajó megjelenítése a frissített pozícióban
     }
-    if (currentState = ROOM2) {
+    if (currentState == ROOM2) {
         for (const auto& enemy : enemies) {
             SDL_Rect enemyRect = {static_cast<int>(enemy.x), static_cast<int>(enemy.y), enemy.width, enemy.height};
             SDL_RenderCopy(renderer, enemyTexture, nullptr, &enemyRect);
@@ -426,7 +432,7 @@ int main(int argc, char* argv[]) {
                     dirY /= length;
                     playerBullets.emplace_back(player.position.x + player.position.w / 2,
                                                player.position.y + player.position.h / 2,
-                                               dirX * BULLET_SPEED, dirY * BULLET_SPEED, bulletTexture);
+                                               dirX * BULLET_SPEED, dirY * BULLET_SPEED, playerBulletTexture);
                 }
 }
 
@@ -449,17 +455,23 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    int enemiesDefeated = 0; // Globális változó a legyőzött ellenségek számának nyilvántartására
+    //int enemiesDefeated = 0; // Globális változó a legyőzött ellenségek számának nyilvántartására
 
     
 
-    // Ellenségek spawnolása
-        if (currentState == ROOM2 && SDL_GetTicks() - lastEnemySpawnTime >= spawnInterval) {
-        float x = std::rand() % (displayMode.w / 4);
-        float y = std::rand() % (displayMode.h / 4);
-        enemies.emplace_back(100, 10, 0.5f, 0.2f, 3, enemyTexture);
-        lastEnemySpawnTime = SDL_GetTicks();
-    }
+    // Enemy spawn logic
+if (currentState == ROOM2 && SDL_GetTicks() - lastEnemySpawnTime >= spawnInterval) {
+    // Generate a random x-coordinate within the screen width
+    float x = static_cast<float>(std::rand() % displayMode.w);
+
+    // Spawn within the top 100 pixels of the screen
+    float y = static_cast<float>(std::rand() % 100);
+
+    // Add the enemy to the list
+    enemies.emplace_back(x, y, 0, 0, 3, enemyTexture); // 3 is the health of the enemy
+    lastEnemySpawnTime = SDL_GetTicks();
+}
+
 
 
 
@@ -472,9 +484,9 @@ int main(int argc, char* argv[]) {
     if (currentState == ROOM2) {
     // Ellenségek frissítése
         for (auto& enemy : enemies) {
-            enemy.update(16); // Delta idő 16ms
+            enemy.update(16, displayMode); // Delta idő 16ms
             if (std::rand() % 100 < 5) { // Véletlenszerű lövés
-                enemy.shoot(bulletTexture);
+                enemy.shoot(enemyBulletTexture);
             }
         }
 
@@ -493,7 +505,7 @@ int main(int argc, char* argv[]) {
 
 
     // Mozgás frissítése (ez már a while (run) belsejében, de az események után van)
-   const int shipSpeed = 5;
+   const int shipSpeed = 8;
     if (keys[0]) player.position.y -= shipSpeed; // Felfelé
     if (keys[1]) player.position.x -= shipSpeed; // Balra
     if (keys[2]) player.position.y += shipSpeed; // Lefelé
@@ -506,10 +518,16 @@ int main(int argc, char* argv[]) {
     if (player.position.y + player.position.h > displayMode.h) player.position.y = displayMode.h - player.position.h;
 
     for (auto& bullet : playerBullets) {
-    bullet.update(16); // Frissítés minden frame-ben
-}
+        bullet.update(16); // Update all player bullets
+    }
+
+    // Update enemies
+    for (auto& enemy : enemies) {
+        enemy.update(16, displayMode); // Update enemy movement and bullets
+    }
 
         
+     // Check collisions for player bullets and enemies
     for (auto bulletIt = playerBullets.begin(); bulletIt != playerBullets.end();) {
     bool bulletRemoved = false;
 
@@ -520,31 +538,45 @@ int main(int argc, char* argv[]) {
         if (checkCollision(bulletRect, enemyRect)) {
             std::cout << "Bullet hit enemy at (" << enemyIt->x << ", " << enemyIt->y << ")" << std::endl;
 
-            // Decrease enemy health
-            enemyIt->health -= 1;
-
-            // Remove enemy if health is zero
+            enemyIt->health -= 1; // Reduce enemy health
             if (enemyIt->health <= 0) {
-                std::cout << "Enemy destroyed at (" << enemyIt->x << ", " << enemyIt->y << ")" << std::endl;
-                enemyIt = enemies.erase(enemyIt); // Correct iterator handling
+                std::cout << "Enemy destroyed!" << std::endl;
+                enemiesDefeated++; // Increment the global counter
+                std::cout << "Enemies defeated: " << enemiesDefeated << std::endl;
+                enemyIt = enemies.erase(enemyIt); // Remove enemy
             } else {
                 ++enemyIt;
             }
 
-            // Remove bullet and exit the enemy loop
-            bulletIt = playerBullets.erase(bulletIt);
+            bulletIt = playerBullets.erase(bulletIt); // Remove bullet
             bulletRemoved = true;
             break;
         } else {
-            ++enemyIt;  
+            ++enemyIt;
         }
     }
 
     if (!bulletRemoved) {
-        bulletIt->update(16); // Update bullet here before advancing
-        ++bulletIt; // Only advance if not erased
+        bulletIt->update(16); // Update bullet if not removed
+        ++bulletIt;
     }
 }
+
+         // Check collisions for enemy bullets and player
+    for (auto& enemy : enemies) {
+        for (auto bulletIt = enemy.bullets.begin(); bulletIt != enemy.bullets.end();) {
+            SDL_Rect bulletRect = {static_cast<int>(bulletIt->x), static_cast<int>(bulletIt->y), 16, 16};
+            SDL_Rect playerRect = {player.position.x, player.position.y, player.position.w, player.position.h};
+
+            if (checkCollision(bulletRect, playerRect)) {
+                std::cout << "Player hit by enemy bullet!" << std::endl;
+                player.health -= 10; // Reduce player's health
+                bulletIt = enemy.bullets.erase(bulletIt); // Remove bullet
+            } else {
+                ++bulletIt;
+            }
+        }
+    }
 
 
 
@@ -554,86 +586,111 @@ int main(int argc, char* argv[]) {
         SDL_RenderClear(renderer);
     
          if (currentState == MENU) {
-            // Menü renderelése ImGui-val
-            SDL_RenderCopy(renderer, backgroundTexture, nullptr, nullptr);
-            ImGui::Begin("Main Menu");
+    // Render the main menu using ImGui
+    SDL_RenderCopy(renderer, backgroundTexture, nullptr, nullptr);
+    ImGui::Begin("Main Menu");
 
-            // Az ablak szélessége
-            ImVec2 windowSize = ImGui::GetWindowSize();
-            float windowWidth = windowSize.x;
+    // Window width
+    ImVec2 windowSize = ImGui::GetWindowSize();
+    float windowWidth = windowSize.x;
 
-            // Gomb szélessége
-            float buttonWidth = 225.0f;
-            float buttonHeight = 45.0f;
+    // Button dimensions
+    float buttonWidth = 225.0f;
+    float buttonHeight = 45.0f;
 
-            // Középre igazítás
-            float centerX = (windowWidth - buttonWidth) / 2.0f;
+    // Center alignment
+    float centerX = (windowWidth - buttonWidth) / 2.0f;
 
-            // New Game gomb
-            ImGui::SetCursorPosX(centerX); // Vízszintes középre igazítás
-            if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(buttonWidth, buttonHeight))) {
-                std::cout << "New Menu clicked" << std::endl;
-                currentState = MAP;
-            }
-
-            ImGui::Dummy(ImVec2(0.0f, 10.0f));
-
-            // Settings gomb
-            ImGui::SetCursorPosX(centerX);
-            if (ImGui::ImageButton("SettingsButton", (ImTextureID)(intptr_t)settingsTexture, ImVec2(buttonWidth, buttonHeight))) {
-                std::cout << "Settings clicked" << std::endl;
-            }
-
-            ImGui::Dummy(ImVec2(0.0f, 10.0f));
-
-            // Credits gomb
-            ImGui::SetCursorPosX(centerX);
-            if (ImGui::ImageButton("CreditsButton", (ImTextureID)(intptr_t)creditsTexture, ImVec2(buttonWidth, buttonHeight))) {
-                std::cout << "Credits clicked" << std::endl;
-            }
-
-            ImGui::Dummy(ImVec2(0.0f, 10.0f));
-
-            // Exit gomb
-            ImGui::SetCursorPosX(centerX);
-            if (ImGui::ImageButton("ExitButton", (ImTextureID)(intptr_t)exitTexture, ImVec2(buttonWidth, buttonHeight))) {
-                run = false;
-            }
-
-            ImGui::End();
-        }
-        
-        else if (currentState == MAP) { // Kiemelt sor
-            RenderGameScreen(renderer, displayMode.w, displayMode.h);
-            // Ellenségek frissítése után, a törlés előtt
-            for (auto& enemy : enemies) {
-                if (!enemy.isAlive()) {
-                    ++enemiesDefeated;
-                }
+    // New Game button
+    ImGui::SetCursorPosX(centerX);
+    if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(buttonWidth, buttonHeight))) {
+        std::cout << "New Game clicked" << std::endl;
+        currentState = MAP;
     }
- 
-    // Ellenőrizd, hogy vége van-e a szobának
-    if (enemiesDefeated >= 20) {
-        currentState = MAP; // Visszalépés a térkép nézetre
-        enemiesDefeated = 0; // Számláló visszaállítása
-        enemies.clear();     // Az ellenségek listájának ürítése
+
+    ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+    // Settings button
+    ImGui::SetCursorPosX(centerX);
+    if (ImGui::ImageButton("SettingsButton", (ImTextureID)(intptr_t)settingsTexture, ImVec2(buttonWidth, buttonHeight))) {
+        std::cout << "Settings clicked" << std::endl;
     }
-        } 
 
-        else if (currentState >= ROOM1 && currentState <= ROOM7) {
-            RenderRoom(renderer, "res/room1.png", shipTexture); 
-                                                                                        //  + std::to_string(currentState - ROOM1 + 1) + ".png"
+    ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
-            // Lövedékek kirajzolása
-            for (auto& bullet : playerBullets) {
-                bullet.render(renderer);
+    // Credits button
+    ImGui::SetCursorPosX(centerX);
+    if (ImGui::ImageButton("CreditsButton", (ImTextureID)(intptr_t)creditsTexture, ImVec2(buttonWidth, buttonHeight))) {
+        std::cout << "Credits clicked" << std::endl;
+    }
+
+    ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+    // Exit button
+    ImGui::SetCursorPosX(centerX);
+    if (ImGui::ImageButton("ExitButton", (ImTextureID)(intptr_t)exitTexture, ImVec2(buttonWidth, buttonHeight))) {
+        run = false;
+    }
+
+    ImGui::End();
+} else if (currentState == MAP) {
+    RenderGameScreen(renderer, displayMode.w, displayMode.h);
+
+    // Check if enemies are alive
+    for (auto& enemy : enemies) {
+        if (!enemy.isAlive()) {
+            ++enemiesDefeated;
+        }
+    }
+
+    
+} else if (currentState >= ROOM1 && currentState <= ROOM7) {
+    RenderRoom(renderer, "res/fg_map.png", shipTexture);
+
+    // Check if the room is cleared
+    if (enemiesDefeated >= 5) {
+        currentState = MAP; // Return to the map view
+        enemiesDefeated = 0; // Reset the counter
+        enemies.clear();     // Clear enemy list
+    }
+
+    if (player.health <=0){
+        currentState = MENU; // Return to the menu view
+        enemies.clear();     // Clear enemy list
+    }
+
+    // Render player bullets
+    for (auto& bullet : playerBullets) {
+        bullet.render(renderer);
+    }
+
+    // Render all enemies and their bullets
+    for (auto& enemy : enemies) {
+        enemy.render(renderer);
+
+        // Check for collisions between enemy bullets and the player
+        for (auto bulletIt = enemy.bullets.begin(); bulletIt != enemy.bullets.end();) {
+            SDL_Rect bulletRect = {static_cast<int>(bulletIt->x), static_cast<int>(bulletIt->y), 16, 16};
+            SDL_Rect playerRect = {player.position.x, player.position.y, player.position.w, player.position.h};
+
+            if (checkCollision(bulletRect, playerRect)) {
+                std::cout << "Player hit by enemy bullet!" << std::endl;
+                player.health -= 10; // Decrease player's health
+                std::cout << "player hp" << std::endl;
+                bulletIt = enemy.bullets.erase(bulletIt); // Remove bullet
+            } else {
+                ++bulletIt;
             }
         }
-                                                                                playerBullets.erase(std::remove_if(playerBullets.begin(), playerBullets.end(),
-                                       [&](const Bullet& b) {
-                                           return b.x < 0 || b.x > displayMode.w || b.y < 0 || b.y > displayMode.h;
-                                       }),
-                        playerBullets.end());
+    }
+
+    // Remove off-screen player bullets
+    playerBullets.erase(std::remove_if(playerBullets.begin(), playerBullets.end(),
+                                   [&](const Bullet& b) {
+                                       return b.x < 0 || b.x > displayMode.w || b.y < 0 || b.y > displayMode.h;
+                                   }),
+                    playerBullets.end());
+}
 
 
         //else {

@@ -37,7 +37,8 @@ extern SDL_Texture* button4Texture;
 extern SDL_Texture* button5Texture;
 extern SDL_Texture* button6Texture;
 extern SDL_Texture* button7Texture;
-extern SDL_Texture* bulletTexture;
+extern SDL_Texture* playerBulletTexture;
+extern SDL_Texture* enemyBulletTexture;
 extern std::vector<Enemy> enemies;
 extern SDL_Texture* enemyTexture;
 extern Uint32 lastEnemySpawnTime;
@@ -45,6 +46,7 @@ extern const Uint32 spawnInterval;
 extern std::vector<Bullet> playerBullets;
 extern GameState currentState;
 extern const float BULLET_SPEED;
+extern int enemiesDefeated;
 bool checkCollision(const SDL_Rect& rectA, const SDL_Rect& rectB);
 
 

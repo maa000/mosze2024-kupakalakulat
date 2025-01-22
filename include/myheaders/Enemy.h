@@ -18,13 +18,13 @@ public:
     Enemy(float x, float y, float vx, float vy, int health, SDL_Texture* texture);
 
     // Movement
-    void update(float deltaTime);
+    void update(float deltaTime, const SDL_DisplayMode& displayMode);
 
     // Rendering
     void render(SDL_Renderer* renderer);
 
     // Shooting
-    void shoot(SDL_Texture* bulletTexture);
+    void shoot(SDL_Texture* enemyBulletTexture);
 
     // Check if the enemy is alive
     bool isAlive() const;
