@@ -59,13 +59,32 @@ void Enemy::render(SDL_Renderer* renderer) {
     }
 
     // Render the enemy
-    SDL_Rect destRect = { static_cast<int>(x), static_cast<int>(y), width, height };
+    SDL_Rect destRect = {static_cast<int>(x), static_cast<int>(y), width, height};
     SDL_RenderCopy(renderer, texture, nullptr, &destRect);
 
     // Render bullets
     for (const auto& bullet : bullets) {
         bullet.render(renderer);
     }
+
+    // Render the enemy's health bar
+    int barWidth = width; // Same as enemy width
+    int barHeight = 5;    // Thin health bar
+    int barX = static_cast<int>(x);
+    int barY = static_cast<int>(y) - barHeight - 5; // Positioned just above the enemy
+
+    float healthRatio = static_cast<float>(health) / 3.0f; // Assuming enemy max health is 3
+    int filledWidth = static_cast<int>(barWidth * healthRatio);
+
+    // Draw the empty part of the health bar (gray background)
+    SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255); // Gray
+    SDL_Rect emptyBarRect = {barX, barY, barWidth, barHeight};
+    SDL_RenderFillRect(renderer, &emptyBarRect);
+
+    // Draw the filled part of the health bar (green foreground)
+    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255); // Green
+    SDL_Rect filledBarRect = {barX, barY, filledWidth, barHeight};
+    SDL_RenderFillRect(renderer, &filledBarRect);
 }
 
 void Enemy::shoot(SDL_Texture* enemyBulletTexture) {

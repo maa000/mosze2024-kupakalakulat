@@ -51,6 +51,7 @@ extern GameState currentState;
 extern const float BULLET_SPEED;
 extern int enemiesDefeated;
 bool checkCollision(const SDL_Rect& rectA, const SDL_Rect& rectB);
+void renderHealthBar(SDL_Renderer* renderer, const Player& player, int screenWidth);
 
 
 
