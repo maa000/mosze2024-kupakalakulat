@@ -1,13 +1,13 @@
 # Compiler and flags
 CXX := g++
 CXXFLAGS := -std=c++11 -Wall -Wextra -g
-LDFLAGS := -Llib/sdl_lib -lSDL2 -lSDL2main -lSDL2_image
+LDFLAGS := -Llib/sdl_lib -lSDL2 -lSDL2main -lSDL2_image -lSDL2_ttf
 
 # Include directories
 INCLUDES := -Iinclude -Iinclude/sdl -Iinclude/imgui -Iinclude/stb -Iinclude/nlohmann -Iinclude/myheaders
 
 # Source and object files
-SRCS := src/Main.cpp src/Player.cpp src/Map.cpp src/Room.cpp src/SaveManager.cpp \
+SRCS := src/Main.cpp src/Player.cpp src/Map.cpp src/Room.cpp src/SaveManager.cpp src/Enemy.cpp src/Globals.cpp src/Bullet.cpp \
         lib/stb/stb_image.c \
         include/imgui/imgui.cpp include/imgui/imgui_draw.cpp \
         include/imgui/imgui_widgets.cpp include/imgui/imgui_tables.cpp \
@@ -34,4 +34,4 @@ $(TARGET): $(OBJS)
 
 # Clean up
 clean:
-	rm -f $(OBJS) $(TARGET)
+	del /q $(subst /,\,$(OBJS)) $(TARGET)
