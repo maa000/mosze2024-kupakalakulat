@@ -158,9 +158,9 @@ void LoadMenuTextures(SDL_Renderer* renderer) {
 void LoadGameTextures(SDL_Renderer* renderer) {
     gameBackgroundTexture = loadTexture("res/mapbg.png", renderer);
     button1Texture = loadTexture("res/Harc_hatter.png", renderer);
-    button2Texture = loadTexture("res/Trade_hatter.png", renderer);
-    button3Texture = loadTexture("res/Unknow_hatter.png", renderer);
-    button4Texture = loadTexture("res/Hp_hatter.png", renderer);
+    button2Texture = loadTexture("res/Harc_hatter.png", renderer);
+    button3Texture = loadTexture("res/Harc_hatter.png", renderer);
+    button4Texture = loadTexture("res/Harc_hatter.png", renderer);
     button5Texture = loadTexture("res/Finalboss_hatter.png", renderer);
     button6Texture = loadTexture("res/Finalboss_hatter.png", renderer);
     button7Texture = loadTexture("res/FinalFinalboss_hatterr.png", renderer);
@@ -186,7 +186,7 @@ void LoadGameTextures(SDL_Renderer* renderer) {
 }
 
     if (!enemyTexture) {
-        std::cerr << "HIBA: Nem sikerült betölteni az enemy textúrát! Ellenőrizd az elérési utat: res/hajo1.png" << std::endl;
+        std::cerr << "HIBA: Nem sikerült betölteni az enemy textúrát! Ellenőrizd az elérési utat: res/hajo2.png" << std::endl;
     }
 }
 
@@ -423,20 +423,21 @@ void RenderRoom(SDL_Renderer* renderer, const std::string& backgroundPath, SDL_T
     if (shipTexture) {
     SDL_RenderCopy(renderer, shipTexture, nullptr, &player.position); // A hajó megjelenítése a frissített pozícióban
     }
-    if (currentState == ROOM2) {
+    if (currentState == ROOM2 || currentState==ROOM1 || currentState== ROOM3 || currentState == ROOM4 ) {
         for (const auto& enemy : enemies) {
             SDL_Rect enemyRect = {static_cast<int>(enemy.x), static_cast<int>(enemy.y), enemy.width, enemy.height};
             SDL_RenderCopy(renderer, enemyTexture, nullptr, &enemyRect);
             }
     }
-    if (currentState != ROOM2) {
+    if (!(currentState == ROOM1 || currentState == ROOM2 || currentState == ROOM3 || currentState == ROOM4)) {
     enemies.clear(); // Töröld az összes ellenséget, amikor nem ROOM2-ben vagy
 }
 }
 void TestPlayerClass();
 
-int main(int argc, char* argv[]) {
 
+int main(int argc, char* argv[]) {
+    SDL_DisplayMode displayMode;
     TestPlayerClass();
     TTF_Font* fontTeszt = TTF_OpenFont("res/font.ttf", 24);
     if (!fontTeszt) {
@@ -478,7 +479,7 @@ if (!font) {
     std::cout << "Betűtípus sikeresen betöltve!" << std::endl;
 }
     // Teljes képernyős ablak létrehozása
-    SDL_DisplayMode displayMode;
+    
     SDL_GetCurrentDisplayMode(0, &displayMode); // Fő monitor mérete
     SDL_Window* window = SDL_CreateWindow("Mosze2024", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                           displayMode.w, displayMode.h, SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN_DESKTOP);
@@ -541,9 +542,13 @@ if (!font) {
     bool mouseClicked = false; // Jelzi, hogy történt-e kattintás
 
         // Hajó textúra betöltése
+<<<<<<< HEAD
+    shipTexture = loadTexture("res/hajo2.png", renderer);
+=======
     shipTexture = loadTexture("res/hajo_v2.png", renderer);
+>>>>>>> master
     if (!shipTexture) {
-        std::cerr << "HIBA: hajo1.png betöltése sikertelen!" << std::endl;
+        std::cerr << "HIBA: hajo2.png betöltése sikertelen!" << std::endl;
         run = false; // Ha nem sikerül betölteni, a program ne fusson tovább
     }
 
@@ -607,7 +612,7 @@ if (!font) {
     
 
     // Enemy spawn logic
-if (currentState == ROOM2 && SDL_GetTicks() - lastEnemySpawnTime >= spawnInterval) {
+if ((currentState == ROOM1 || currentState == ROOM2 || currentState == ROOM3 || currentState == ROOM4) && SDL_GetTicks() - lastEnemySpawnTime >= spawnInterval) {
     // Generate a random x-coordinate within the screen width
     float x = static_cast<float>(std::rand() % displayMode.w);
 
@@ -628,7 +633,7 @@ if (currentState == ROOM2 && SDL_GetTicks() - lastEnemySpawnTime >= spawnInterva
     }
 
     // Ellenségek frissítése
-    if (currentState == ROOM2) {
+    if ((currentState ==  ROOM2  ||  ROOM1 ||  ROOM3 || ROOM4 )) {
     // Ellenségek frissítése
         for (auto& enemy : enemies) {
             enemy.update(16, displayMode); // Delta idő 16ms
@@ -654,9 +659,17 @@ if (currentState == ROOM2 && SDL_GetTicks() - lastEnemySpawnTime >= spawnInterva
     currentState == GameState::STORY_ROOM7) {
     RenderRoomWithStory(renderer, "res/fg_map.png", shipTexture, font);
 } else if (currentState == GameState::ROOM1 || 
+           currentState == GameState::ROOM2 || 
            currentState == GameState::ROOM3 || 
+<<<<<<< HEAD
+           currentState == GameState::ROOM4 || 
+           currentState == GameState::ROOM5) {
+    RenderRoom(renderer, "res/fg_map.png", shipTexture);
+    //UpdateRoomLogic();
+=======
            currentState == GameState::ROOM7) {
     RenderRoom(renderer, "res/fg_map.png", shipTexture);
+>>>>>>> master
 } else {
     // Clear screen
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
@@ -822,6 +835,7 @@ if (currentState == ROOM2 && SDL_GetTicks() - lastEnemySpawnTime >= spawnInterva
 
     if (player.health <=0){
         currentState = MENU; // Return to the menu view
+        enemiesDefeated = 0;
         enemies.clear();     // Clear enemy list
     }
 
