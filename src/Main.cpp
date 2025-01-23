@@ -541,7 +541,7 @@ if (!font) {
     bool mouseClicked = false; // Jelzi, hogy történt-e kattintás
 
         // Hajó textúra betöltése
-    shipTexture = loadTexture("res/hajo1.png", renderer);
+    shipTexture = loadTexture("res/hajo_v2.png", renderer);
     if (!shipTexture) {
         std::cerr << "HIBA: hajo1.png betöltése sikertelen!" << std::endl;
         run = false; // Ha nem sikerül betölteni, a program ne fusson tovább
@@ -652,11 +652,11 @@ if (currentState == ROOM2 && SDL_GetTicks() - lastEnemySpawnTime >= spawnInterva
     if (currentState == GameState::STORY_ROOM1 || 
     currentState == GameState::STORY_ROOM3 || 
     currentState == GameState::STORY_ROOM7) {
-    RenderRoomWithStory(renderer, "res/room1.png", shipTexture, font);
+    RenderRoomWithStory(renderer, "res/fg_map.png", shipTexture, font);
 } else if (currentState == GameState::ROOM1 || 
            currentState == GameState::ROOM3 || 
            currentState == GameState::ROOM7) {
-    RenderRoom(renderer, "res/room1.png", shipTexture);
+    RenderRoom(renderer, "res/fg_map.png", shipTexture);
 } else {
     // Clear screen
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
@@ -704,15 +704,10 @@ if (currentState == ROOM2 && SDL_GetTicks() - lastEnemySpawnTime >= spawnInterva
 
             enemyIt->health -= 1; // Reduce enemy health
             if (enemyIt->health <= 0) {
-<<<<<<< HEAD
-               // std::cout << "Enemy destroyed at (" << enemyIt->x << ", " << enemyIt->y << ")" << std::endl;
-                enemyIt = enemies.erase(enemyIt); // Correct iterator handling
-=======
                 std::cout << "Enemy destroyed!" << std::endl;
                 enemiesDefeated++; // Increment the global counter
                 std::cout << "Enemies defeated: " << enemiesDefeated << std::endl;
                 enemyIt = enemies.erase(enemyIt); // Remove enemy
->>>>>>> enemies
             } else {
                 ++enemyIt;
             }
@@ -770,21 +765,12 @@ if (currentState == ROOM2 && SDL_GetTicks() - lastEnemySpawnTime >= spawnInterva
     // Center alignment
     float centerX = (windowWidth - buttonWidth) / 2.0f;
 
-<<<<<<< HEAD
-            // New Game gomb
-            ImGui::SetCursorPosX(centerX); // Vízszintes középre igazítás
-            if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(buttonWidth, buttonHeight))) {
-                std::cout << "New Menu clicked" << std::endl;
-                currentState = GameState::MAP;
-            }
-=======
     // New Game button
     ImGui::SetCursorPosX(centerX);
     if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(buttonWidth, buttonHeight))) {
         std::cout << "New Game clicked" << std::endl;
         currentState = MAP;
     }
->>>>>>> enemies
 
     ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
@@ -820,25 +806,18 @@ if (currentState == ROOM2 && SDL_GetTicks() - lastEnemySpawnTime >= spawnInterva
             ++enemiesDefeated;
         }
     }
-<<<<<<< HEAD
- 
-    // Ellenőrizd, hogy vége van-e a szobának
-    if (enemiesDefeated >= 20) {
-        currentState = GameState::MAP; // Visszalépés a térkép nézetre
-        enemiesDefeated = 0; // Számláló visszaállítása
-        enemies.clear();     // Az ellenségek listájának ürítése
-=======
 
     
 } else if (currentState >= ROOM1 && currentState <= ROOM7) {
     RenderRoom(renderer, "res/fg_map.png", shipTexture);
+
+    renderHealthBar(renderer, player, displayMode.w);
 
     // Check if the room is cleared
     if (enemiesDefeated >= 5) {
         currentState = MAP; // Return to the map view
         enemiesDefeated = 0; // Reset the counter
         enemies.clear();     // Clear enemy list
->>>>>>> enemies
     }
 
     if (player.health <=0){
