@@ -773,6 +773,7 @@ if ((currentState == ROOM1 || currentState == ROOM2 || currentState == ROOM3 || 
     ImGui::SetCursorPosX(centerX);
     if (ImGui::ImageButton("NewGameButton", (ImTextureID)(intptr_t)newGameTexture, ImVec2(buttonWidth, buttonHeight))) {
         std::cout << "New Game clicked" << std::endl;
+        player.health = 100;
         currentState = MAP;
     }
 
