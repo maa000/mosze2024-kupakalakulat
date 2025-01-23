@@ -25,7 +25,7 @@ Uint32 lastEnemySpawnTime = 0;
 const Uint32 spawnInterval = 3000;
 std::vector<Bullet> playerBullets;
 GameState currentState = MENU;
-const float BULLET_SPEED = 0.5f;
+const float BULLET_SPEED = 0.8f;
 int enemiesDefeated = 0;
 
 bool checkCollision(const SDL_Rect& rectA, const SDL_Rect& rectB) {
