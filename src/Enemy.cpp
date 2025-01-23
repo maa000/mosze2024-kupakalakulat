@@ -1,5 +1,6 @@
 #include "Enemy.h"
 #include "Bullet.h"
+#include "Globals.h"
 #include <cmath>
 #include <iostream>
 #include <algorithm> // For std::remove_if
@@ -17,32 +18,40 @@ Enemy::Enemy(float x, float y, float vx, float vy, int health, SDL_Texture* text
     }
 }
 
-void Enemy::update(float deltaTime) {
+void Enemy::update(float deltaTime, const SDL_DisplayMode& displayMode) {
+    // Calculate direction to the player
+    float dirX = player.position.x + player.position.w / 2 - (x + width / 2);
+    float dirY = player.position.y + player.position.h / 2 - (y + height / 2);
+    float length = sqrt(dirX * dirX + dirY * dirY);
+
+    if (length != 0) {
+        dirX /= length; // Normalize direction vector
+        dirY /= length;
+    }
+
+    // Update velocity based on direction
+    float speed = 0.1f; // Adjust this value for enemy speed
+    vx = dirX * speed;
+    vy = dirY * speed;
+
+    // Update position
     x += vx * deltaTime;
     y += vy * deltaTime;
 
-    if (x <= 0 || x >= 1280 - width) {
-        vx = -vx; // Reverse direction
-    }
-
-    // Simulate shooting
-    if (std::rand() % 100 < 5) { // 5% chance to shoot per update
-        shoot(texture); // Ensure the correct texture is passed
-    }
-
     // Update bullets
     for (auto& bullet : bullets) {
-        std::cout << "Updating bullet at (" << bullet.x << ", " << bullet.y << ")" << std::endl;
-        bullet.update(deltaTime);
+        bullet.update(deltaTime); // Ensure bullets move
     }
 
     // Remove bullets that are off-screen
     bullets.erase(std::remove_if(bullets.begin(), bullets.end(),
-                                 [](const Bullet& b) {
-                                     return b.x < 0 || b.x > 1280 || b.y < 0 || b.y > 720;
+                                 [&](const Bullet& b) {
+                                     return b.x < 0 || b.x > displayMode.w || b.y < 0 || b.y > displayMode.h;
                                  }),
                   bullets.end());
 }
+
+
 void Enemy::render(SDL_Renderer* renderer) {
     if (!texture) {
         std::cerr << "HIBA: Enemy textúra üres, nem lehet kirajzolni!" << std::endl;
@@ -59,17 +68,24 @@ void Enemy::render(SDL_Renderer* renderer) {
     }
 }
 
-void Enemy::shoot(SDL_Texture* bulletTexture) {
-    if (!bulletTexture) {
+void Enemy::shoot(SDL_Texture* enemyBulletTexture) {
+    if (!enemyBulletTexture) {
         std::cerr << "HIBA: Lövedék textúra üres, nem lehet lövést létrehozni!" << std::endl;
         return;
     }
-    else{
-        std::cerr << bulletTexture << std::endl;
-    }
 
-    // Add a new bullet to the vector
-    bullets.emplace_back(x + width / 2, y + height, 0, 0.3f, bulletTexture);
+    // Calculate direction to the player
+    float dirX = player.position.x + player.position.w / 2 - (x + width / 2);
+    float dirY = player.position.y + player.position.h / 2 - (y + height / 2);
+    float length = sqrt(dirX * dirX + dirY * dirY);
+
+    if (length != 0) {
+        dirX /= length; // Normalize
+        dirY /= length;
+
+        // Add a new bullet toward the player
+        bullets.emplace_back(x + width / 2, y + height / 2, dirX * BULLET_SPEED, dirY * BULLET_SPEED, enemyBulletTexture);
+    }
 }
 
 bool Enemy::isAlive() const {

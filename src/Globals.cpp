@@ -17,7 +17,8 @@ SDL_Texture* button4Texture = nullptr;
 SDL_Texture* button5Texture = nullptr;
 SDL_Texture* button6Texture = nullptr;
 SDL_Texture* button7Texture = nullptr;
-SDL_Texture* bulletTexture = nullptr;
+SDL_Texture* playerBulletTexture = nullptr;
+SDL_Texture* enemyBulletTexture = nullptr;
 std::vector<Enemy> enemies;
 SDL_Texture* enemyTexture = nullptr;
 Uint32 lastEnemySpawnTime = 0;
@@ -25,6 +26,7 @@ const Uint32 spawnInterval = 3000;
 std::vector<Bullet> playerBullets;
 GameState currentState = MENU;
 const float BULLET_SPEED = 0.5f;
+int enemiesDefeated = 0;
 
 bool checkCollision(const SDL_Rect& rectA, const SDL_Rect& rectB) {
     return rectA.x < rectB.x + rectB.w &&
