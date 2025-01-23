@@ -12,13 +12,16 @@
 enum GameState {
     MENU,
     MAP,
-    ROOM1, // A ROOM1-ROOM7 az egyes gombokhoz tartozó oldalak.
+    ROOM1,
+    STORY_ROOM1,
     ROOM2,
     ROOM3,
+    STORY_ROOM3,
     ROOM4,
     ROOM5,
     ROOM6,
-    ROOM7
+    ROOM7,
+    STORY_ROOM7
 };
 
 // Globális változók deklarációi
