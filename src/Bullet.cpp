@@ -5,11 +5,7 @@ Bullet::Bullet(float x, float y, float vx, float vy, SDL_Texture* texture)
     : x(x), y(y), vx(vx), vy(vy), texture(texture) {}
 
 void Bullet::update(float deltaTime) {
-<<<<<<< HEAD
-    //std::cout << "Updating bullet at (" << x << ", " << y << "), vx: " << vx << ", vy: " << vy << std::endl;
-=======
     
->>>>>>> master
     x += vx * deltaTime;
     y += vy * deltaTime;
 }

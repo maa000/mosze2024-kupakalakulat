@@ -542,11 +542,7 @@ if (!font) {
     bool mouseClicked = false; // Jelzi, hogy történt-e kattintás
 
         // Hajó textúra betöltése
-<<<<<<< HEAD
-    shipTexture = loadTexture("res/hajo2.png", renderer);
-=======
     shipTexture = loadTexture("res/hajo_v2.png", renderer);
->>>>>>> master
     if (!shipTexture) {
         std::cerr << "HIBA: hajo2.png betöltése sikertelen!" << std::endl;
         run = false; // Ha nem sikerül betölteni, a program ne fusson tovább
@@ -661,15 +657,10 @@ if ((currentState == ROOM1 || currentState == ROOM2 || currentState == ROOM3 || 
 } else if (currentState == GameState::ROOM1 || 
            currentState == GameState::ROOM2 || 
            currentState == GameState::ROOM3 || 
-<<<<<<< HEAD
            currentState == GameState::ROOM4 || 
            currentState == GameState::ROOM5) {
     RenderRoom(renderer, "res/fg_map.png", shipTexture);
     //UpdateRoomLogic();
-=======
-           currentState == GameState::ROOM7) {
-    RenderRoom(renderer, "res/fg_map.png", shipTexture);
->>>>>>> master
 } else {
     // Clear screen
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
@@ -682,7 +673,7 @@ if ((currentState == ROOM1 || currentState == ROOM2 || currentState == ROOM3 || 
 }
 
     // Mozgás frissítése (ez már a while (run) belsejében, de az események után van)
-   const int shipSpeed = 8;
+   const int shipSpeed = 16;
     if (keys[0]) player.position.y -= shipSpeed; // Felfelé
     if (keys[1]) player.position.x -= shipSpeed; // Balra
     if (keys[2]) player.position.y += shipSpeed; // Lefelé
